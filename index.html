@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ohmsches Gesetz</title>
+<meta name="description" content="Interaktive Simulation für den Unterricht: einfacher Gleichstromkreis mit regelbarer Spannungsquelle, Schalter, Widerstand, Ampere- und Voltmeter. Elektronenfluss und technische Stromrichtung, Messreihe mit Tabelle und Kennlinie. DE / FR / EN.">
+<meta name="theme-color" content="#16324f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316324f'/%3E%3Ctext x='32' y='47' font-family='Georgia,serif' font-size='42' text-anchor='middle' fill='%23ffffff'%3E%CE%A9%3C/text%3E%3C/svg%3E">
+<style>
+/* ------------------------------------------------------------------
+   Farben als Tokens (hell / dunkel). Semantik:
+   --elek  Elektronen / Reihe 1 (blau)   --konv  technische Stromrichtung / Reihe 2 (orange)
+   --s3    Reihe 3 (grün)                --brand Instrumente, Überschriften (dunkelblau)
+   Dieselbe Palette wie im Potentialdiagramm (dataviz-Validator: Helligkeitsband,
+   Chroma, Farbfehlsichtigkeit alle Paare, Kontrast >= 3:1), hell und dunkel.
+   ------------------------------------------------------------------ */
+:root{
+  color-scheme: light;
+  --page:#edf2f4; --card:#fcfcfb; --card2:#f2f6f8; --ink:#13202c; --ink2:#46566a; --muted:#6b7a87;
+  --grid:#e3e9ed; --axis:#b3bec7; --brand:#16324f; --line:#d6dee4;
+  --elek:#2a6fd6; --konv:#d9480f; --s3:#0a9170; --warn:#b4530a; --warnbg:#fff3e6;
+  --btn:#ffffff; --btnh:#e9f0f4; --lcd:#0f2a1c; --lcdbg:#dff3e4; --lcdoff:#8aa08f;
+  --shadow:0 1px 2px rgba(19,32,44,.06),0 6px 20px rgba(19,32,44,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#0c1319; --card:#16202a; --card2:#1c2834; --ink:#edf2f6; --ink2:#b5c2cd; --muted:#8e9ca8;
+    --grid:#233140; --axis:#3d4f60; --brand:#a9cdf0; --line:#2b3a48;
+    --elek:#4a8de8; --konv:#e46a33; --s3:#1fa582; --warn:#f0a35e; --warnbg:#2b2117;
+    --btn:#1c2834; --btnh:#243343; --lcd:#c9f5d6; --lcdbg:#0f1f16; --lcdoff:#3f5a48; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0c1319; --card:#16202a; --card2:#1c2834; --ink:#edf2f6; --ink2:#b5c2cd; --muted:#8e9ca8;
+  --grid:#233140; --axis:#3d4f60; --brand:#a9cdf0; --line:#2b3a48;
+  --elek:#4a8de8; --konv:#e46a33; --s3:#1fa582; --warn:#f0a35e; --warnbg:#2b2117;
+  --btn:#1c2834; --btnh:#243343; --lcd:#c9f5d6; --lcdbg:#0f1f16; --lcdoff:#3f5a48; --shadow:none;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  min-height:100dvh; display:flex; flex-direction:column; -webkit-text-size-adjust:100%;
+}
+sub{font-size:.72em; line-height:0}
+sup{font-size:.72em; line-height:0}
+i{font-style:italic}
+.tn{font-variant-numeric:tabular-nums}
+
+/* Kopfzeile */
+.kopf{display:flex; align-items:center; gap:14px; padding:10px 16px; background:var(--card); border-bottom:1px solid var(--line)}
+.logo{width:42px; height:42px; border-radius:11px; background:var(--brand); color:var(--card); display:grid; place-items:center; font:500 28px/1 Georgia,"Times New Roman",serif; flex:none}
+.kopf h1{font-size:clamp(19px,1.1vw + 11px,27px); margin:0; line-height:1.15; color:var(--brand)}
+.kopf p{margin:2px 0 0; color:var(--ink2); font-size:14.5px}
+.kopf .rechts{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
+
+button,select,input{font:inherit; color:var(--ink)}
+button,select{
+  font-size:15px; background:var(--btn);
+  border:1px solid var(--line); border-radius:9px; padding:7px 12px; min-height:40px; cursor:pointer;
+}
+button:hover,select:hover{background:var(--btnh)}
+button:disabled{opacity:.45; cursor:default}
+button[aria-pressed="true"]{background:var(--brand); color:var(--card); border-color:var(--brand)}
+button:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--elek); outline-offset:2px}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+.seg button{border:0; border-radius:0; min-width:44px}
+.seg button + button{border-left:1px solid var(--line)}
+.ikon{min-width:40px; padding:7px 9px; font-size:17px; line-height:1}
+input[type="number"]{
+  background:var(--btn); border:1px solid var(--line); border-radius:9px; padding:6px 8px; min-height:40px; width:92px;
+  font-variant-numeric:tabular-nums; font-size:16px;
+}
+
+/* Bühne */
+.buehne{
+  display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);
+  grid-template-areas:"schalt steuer" "mess steuer"; gap:12px; padding:12px 16px 16px; align-items:start;
+}
+.karte{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px 12px; box-shadow:var(--shadow); min-width:0}
+.karte h2{margin:0 0 6px; font-size:14.5px; font-weight:650; color:var(--ink2); text-transform:uppercase; letter-spacing:.05em}
+.k-schalt{grid-area:schalt}
+.k-steuer{grid-area:steuer; display:flex; flex-direction:column; gap:12px}
+.k-mess{grid-area:mess}
+.k-mess[hidden]{display:none}
+
+/* Schaltbild */
+.schaltbild{width:100%; height:auto; display:block; touch-action:manipulation; max-height:min(58dvh,520px); margin:auto}
+.draht{fill:none; stroke:var(--ink); stroke-width:3; stroke-linecap:round; stroke-linejoin:round}
+.knoten{fill:var(--ink)}
+.bauteil{fill:var(--card); stroke:var(--ink); stroke-width:3}
+.symbol{fill:var(--ink); font-size:22px; font-weight:700; text-anchor:middle; dominant-baseline:central; font-family:Georgia,"Times New Roman",serif}
+.sym-i{font-style:italic}
+.etikett{fill:var(--ink2); font-size:16px; text-anchor:middle}
+.etikett.i{font-style:italic; font-family:Georgia,"Times New Roman",serif; font-size:19px; fill:var(--ink)}
+.wert{fill:var(--brand); font-size:17px; font-weight:700; text-anchor:middle; font-variant-numeric:tabular-nums}
+.ablesung{fill:var(--lcd); font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.ablesung-bg{fill:var(--lcdbg); stroke:var(--line)}
+.elektron{fill:var(--elek)}
+.elektron line{stroke:#fff; stroke-width:2; stroke-linecap:round}
+.pfeil{fill:var(--konv)}
+.bogen{fill:none; stroke-width:4; stroke-linecap:round}
+.bogen.k{stroke:var(--konv)}
+.bogen.e{stroke:var(--elek)}
+.bogentext{font-size:20px; font-weight:700; text-anchor:middle; font-family:Georgia,"Times New Roman",serif; font-style:italic}
+.bogentext.k{fill:var(--konv)}
+.bogentext.e{fill:var(--elek)}
+.schaltertreffer{fill:transparent; cursor:pointer}
+.schaltertreffer:hover + .blatt{stroke:var(--brand); stroke-width:4}
+.blatt{fill:none; stroke:var(--ink); stroke-width:3; stroke-linecap:round; transition:transform .25s; transform-origin:150px 60px; pointer-events:none}
+.blatt.offen{transform:rotate(-32deg)}
+@media (prefers-reduced-motion: reduce){ .blatt{transition:none} }
+.quelle-pfeil{fill:none; stroke:var(--ink); stroke-width:2.5; stroke-linecap:round}
+.legende{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:13.5px; color:var(--ink2); margin-top:6px}
+.legende label{display:inline-flex; align-items:center; gap:7px; cursor:pointer}
+.legende input{width:17px; height:17px; margin:0; accent-color:var(--brand)}
+.lp{display:inline-block; width:11px; height:11px; border-radius:50%; background:var(--elek)}
+.lk{display:inline-block; width:0; height:0; border-style:solid; border-width:6px 0 6px 11px; border-color:transparent transparent transparent var(--konv)}
+.skala{font-size:12.5px; color:var(--muted); margin:4px 0 0}
+
+/* Steuerung */
+.block{display:flex; flex-direction:column; gap:8px}
+.uzeile{display:flex; align-items:center; gap:8px}
+.uzeile input[type="range"]{flex:1; min-width:0; accent-color:var(--brand); height:30px; cursor:pointer}
+.uzeile output{min-width:96px; text-align:right; font-weight:700; font-size:19px; font-variant-numeric:tabular-nums; color:var(--brand)}
+.feldzeile{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center}
+.feldzeile label{display:inline-flex; align-items:center; gap:7px; font-size:14.5px; color:var(--ink2)}
+.feldzeile select{min-width:74px}
+.schalterzeile{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.status{font-size:14.5px; color:var(--ink2)}
+.status b{color:var(--ink)}
+.status.zu b{color:var(--s3)}
+
+/* Instrumente */
+.instr{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.anz{background:var(--lcdbg); border:1px solid var(--line); border-radius:12px; padding:8px 12px 10px; min-width:0}
+.anz .lbl{display:block; font-size:12.5px; color:var(--ink2); text-transform:uppercase; letter-spacing:.05em}
+.anz .lbl b{font-weight:800; color:var(--ink); font-style:italic; font-family:Georgia,"Times New Roman",serif; text-transform:none; font-size:15px; letter-spacing:0}
+.anz strong{
+  display:block; font:700 clamp(26px,1.8vw + 12px,40px)/1.15 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color:var(--lcd); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.anz.aus strong{color:var(--lcdoff)}
+.formel{
+  font-size:clamp(17px,.7vw + 11px,23px); font-variant-numeric:tabular-nums;
+  background:var(--card2); border-left:4px solid var(--brand); padding:6px 14px; border-radius:0 9px 9px 0;
+  max-width:100%; overflow-wrap:anywhere; margin:0;
+}
+.formel i{font-family:Georgia,"Times New Roman",serif}
+.notiz{color:var(--ink2); font-size:14px; margin:8px 0 0}
+.hinweis{background:var(--warnbg); color:var(--warn); border:1px solid var(--warn); border-radius:9px; padding:7px 12px; font-size:14.5px; margin:8px 0 0}
+.hinweis[hidden]{display:none}
+
+/* Messreihe */
+.messkopf{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px}
+.messkopf h2{margin:0 auto 0 0}
+.messraster{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:14px; align-items:start}
+.tabwrap{max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+table{border-collapse:separate; border-spacing:0; width:100%; font-variant-numeric:tabular-nums; font-size:15px}
+caption{text-align:left; color:var(--muted); font-size:13px; padding:4px 10px}
+th,td{border-bottom:1px solid var(--line); padding:4px 12px; text-align:right; line-height:1.4; white-space:nowrap}
+th{position:sticky; top:0; background:var(--card2); color:var(--ink2); font-weight:650; z-index:1}
+th:first-child,td:first-child{text-align:center; color:var(--muted); min-width:44px}
+tr:last-child td{border-bottom:0}
+td.neu{background:var(--card2); font-weight:700; box-shadow:inset 3px 0 0 var(--brand)}
+.leer{color:var(--muted); font-size:14px; padding:12px 14px; margin:0}
+.diag{position:relative}
+.diag svg{width:100%; height:auto; display:block}
+.diag .ach{stroke:var(--axis); stroke-width:1.2}
+.diag .netz{stroke:var(--grid); stroke-width:1}
+.diag .tick{fill:var(--ink2); font-size:12px; font-variant-numeric:tabular-nums}
+.diag .achsname{fill:var(--ink2); font-size:13px; font-weight:600}
+.diag .achsname i{font-family:Georgia,"Times New Roman",serif}
+.diag .linie{fill:none; stroke-width:2.2; stroke-linejoin:round; stroke-linecap:round}
+.diag .marke{stroke:var(--card); stroke-width:2}
+.diag .treffer{fill:transparent; cursor:crosshair}
+.diag .direkt{fill:var(--ink); font-size:12.5px; font-weight:650}
+.tooltip{
+  position:absolute; pointer-events:none; background:var(--ink); color:var(--card); font-size:13px; line-height:1.35;
+  padding:5px 9px; border-radius:7px; white-space:nowrap; transform:translate(-50%,calc(-100% - 10px)); opacity:0; transition:opacity .12s;
+  font-variant-numeric:tabular-nums; z-index:2;
+}
+.tooltip.an{opacity:1}
+.diaglegende{display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px; color:var(--ink2); margin:4px 0 0; min-height:0}
+.diaglegende span{display:inline-flex; align-items:center; gap:6px}
+.diaglegende i{display:inline-block; width:18px; height:3px; border-radius:2px; font-style:normal}
+
+/* Herleitung */
+.herl{margin-top:14px; border-top:1px solid var(--line); padding-top:12px}
+.herlkopf{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.herlkopf .status{flex-basis:100%}
+.herlpanel{display:grid; gap:10px; margin-top:12px}
+.herlpanel[hidden]{display:none}
+.hschritt{display:grid; grid-template-columns:34px minmax(0,1fr); gap:4px 12px; align-items:start; background:var(--card2); border-radius:12px; padding:10px 14px 12px}
+.hschritt .nr{width:30px; height:30px; border-radius:50%; background:var(--brand); color:var(--card); display:grid; place-items:center; font-weight:700; font-size:15px; margin-top:2px}
+.hschritt h3{margin:4px 0 2px; font-size:16.5px; color:var(--brand); line-height:1.25}
+.hschritt p{margin:0 0 6px; font-size:15px; line-height:1.45}
+.hschritt .formeln{display:flex; flex-direction:column; gap:5px; align-items:flex-start}
+.hschritt .formel{font-size:clamp(16px,.5vw + 11px,20px); background:var(--card); width:fit-content; max-width:100%}
+.hschritt.fazit{box-shadow:inset 0 0 0 2px var(--brand)}
+.hschritt.fazit .formeln{flex-direction:row; flex-wrap:wrap; gap:8px 14px}
+.diag .delta{stroke:var(--ink2); stroke-width:1.6; stroke-dasharray:5 4; fill:none}
+.diag .deltatext{fill:var(--ink); font-size:12.5px; font-weight:650; font-variant-numeric:tabular-nums}
+
+/* QR / Overlays */
+.qrkarte{
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+}
+.qrknopf{padding:6px; background:#fff; border:1px solid #d6dee4; border-radius:10px; min-height:0; width:min(100%,170px); cursor:zoom-in}
+.qrknopf:hover{background:#fff}
+.qrknopf svg,.obox svg{display:block; width:100%; height:auto}
+.qrcap{font-size:13px; color:var(--ink2); text-align:center; margin:0; line-height:1.3}
+.qrurl{font-size:12.5px; font-weight:650; color:var(--brand); text-align:center; margin:0; overflow-wrap:anywhere; line-height:1.3}
+.overlay{position:fixed; inset:0; background:rgba(8,14,20,.72); display:grid; place-items:center; padding:16px; z-index:50}
+.overlay[hidden]{display:none}
+.obox{background:var(--card); border-radius:18px; padding:20px 22px; max-width:min(92vw,560px); width:100%; display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center; max-height:92dvh; overflow:auto}
+.obox h2{margin:0; font-size:20px; color:var(--brand); text-transform:none; letter-spacing:0}
+.obox .qrbox{width:min(70vh,82vw,460px); background:#fff; padding:14px; border-radius:12px}
+.obox .url{font-size:clamp(16px,2.2vw,22px); font-weight:700; color:var(--brand); margin:0; overflow-wrap:anywhere}
+.hilfe{text-align:left; width:100%}
+.hilfe table{font-size:15px}
+.hilfe td{text-align:left; white-space:normal}
+.hilfe td:first-child{text-align:left; color:var(--ink); font-weight:700; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; min-width:0}
+kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:var(--card2); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; color:var(--ink)}
+
+.nurmobil{display:none}
+@media (max-width: 1060px){
+  .buehne{grid-template-columns:minmax(0,1fr); grid-template-areas:"schalt" "steuer" "mess"}
+  .qrkarte{display:none}
+  .nurmobil{display:inline-flex}
+  .schaltbild{max-height:none}
+}
+@media (max-width: 720px){
+  .kopf{padding:8px 12px; gap:10px}
+  .kopf p{display:none}
+  .buehne{padding:10px 12px 14px; gap:10px}
+  .messraster{grid-template-columns:minmax(0,1fr)}
+  .instr{grid-template-columns:1fr 1fr}
+  .anz strong{font-size:clamp(22px,7vw,34px)}
+}
+@media (prefers-reduced-motion: reduce){
+  .tooltip{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header class="kopf">
+  <div class="logo" aria-hidden="true">Ω</div>
+  <div>
+    <h1 data-i18n="titel">Ohmsches Gesetz</h1>
+    <p data-i18n="unter">Einfacher Stromkreis: Spannung, Strom und Widerstand</p>
+  </div>
+  <div class="rechts">
+    <div class="seg" role="group" aria-label="Sprache / Langue / Language">
+      <button type="button" data-lang="de" aria-pressed="true" lang="de">DE</button>
+      <button type="button" data-lang="fr" aria-pressed="false" lang="fr">FR</button>
+      <button type="button" data-lang="en" aria-pressed="false" lang="en">EN</button>
+    </div>
+    <button type="button" class="ikon" id="themaBtn" data-i18n-title="themaTitel" title="Hell / dunkel" aria-label="Hell / dunkel">◐</button>
+    <button type="button" class="ikon" id="vollBtn" data-i18n-title="vollTitel" title="Vollbild (F)" aria-label="Vollbild">⛶</button>
+    <button type="button" class="ikon" id="hilfeBtn" data-i18n-title="hilfeTitel" title="Tastatur (H)" aria-label="Tastatur">?</button>
+    <button type="button" class="ikon nurmobil" id="qrMobil" data-i18n-title="qrTitel" title="QR-Code (Q)" aria-label="QR">▦</button>
+  </div>
+</header>
+
+<main class="buehne">
+
+  <!-- Schaltbild -->
+  <section class="karte k-schalt">
+    <h2 data-i18n="schaltung">Schaltung</h2>
+    <svg class="schaltbild" id="schaltbild" viewBox="-30 0 630 322" role="img" aria-labelledby="sbTitel">
+      <title id="sbTitel">Stromkreis: Quelle, Schalter, Amperemeter, Widerstand, Voltmeter</title>
+      <defs>
+        <marker id="pfK" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="var(--konv)"/></marker>
+        <marker id="pfE" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="var(--elek)"/></marker>
+      </defs>
+
+      <!-- unsichtbarer Bewegungspfad (im Uhrzeigersinn, Start am Pluspol) -->
+      <path id="bahn" d="M90,147 V60 H430 V290 H90 V203 L90,147" fill="none" stroke="none"/>
+
+      <!-- sichtbare Leitungen (Lücke am Schalter) -->
+      <path class="draht" d="M90,147 V60 H150 M195,60 H430 V290 H90 V203"/>
+      <!-- Voltmeter-Zweig -->
+      <path class="draht" d="M430,120 H520 V153 M520,197 V230 H430"/>
+
+      <!-- Richtungsbögen in der Masche -->
+      <!-- technische Stromrichtung: im Uhrzeigersinn (+ → −), Elektronen: entgegen (− → +) -->
+      <g id="bogenK">
+        <path class="bogen k" d="M205,150 A52,52 0 1 1 205,200" marker-end="url(#pfK)"/>
+        <text class="bogentext k" x="250" y="113">I</text>
+      </g>
+      <g id="bogenE">
+        <path class="bogen e" d="M274,157 A30,30 0 1 0 274,193" marker-end="url(#pfE)"/>
+        <text class="bogentext e" x="250" y="182">e<tspan dy="-9" font-size="14">−</tspan></text>
+      </g>
+
+      <!-- bewegte Teilchen -->
+      <g id="pfeile"></g>
+      <g id="elektronen"></g>
+
+      <!-- Spannungsquelle -->
+      <g id="quelleG" tabindex="0" role="button" aria-label="Spannungsquelle">
+        <circle class="bauteil" cx="90" cy="175" r="28"/>
+        <path class="quelle-pfeil" d="M72,195 L110,153 M98,153 L110,153 L110,165"/>
+        <text class="etikett i" x="56" y="168">U<tspan dy="5" font-size="13" font-style="normal">0</tspan></text>
+        <text class="wert" id="svgU0" x="56" y="192">12 V</text>
+        <text class="etikett" x="112" y="145" style="font-size:20px;font-weight:700;fill:var(--ink)">+</text>
+        <text class="etikett" x="112" y="212" style="font-size:22px;font-weight:700;fill:var(--ink)">−</text>
+      </g>
+      <circle class="knoten" cx="90" cy="147" r="4"/>
+      <circle class="knoten" cx="90" cy="203" r="4"/>
+
+      <!-- Schalter -->
+      <g id="schalterG">
+        <rect class="schaltertreffer" x="134" y="18" width="78" height="76" rx="8" tabindex="0" role="switch" aria-checked="false" aria-label="Schalter S"/>
+        <line class="blatt offen" id="blatt" x1="150" y1="60" x2="194" y2="60"/>
+        <circle class="knoten" cx="150" cy="60" r="4"/>
+        <circle class="knoten" cx="195" cy="60" r="4"/>
+        <text class="etikett i" x="172" y="98">S</text>
+      </g>
+
+      <!-- Amperemeter -->
+      <g>
+        <circle class="bauteil" cx="300" cy="60" r="22"/>
+        <text class="symbol" x="300" y="60">A</text>
+        <rect class="ablesung-bg" x="243" y="4" width="114" height="30" rx="7"/>
+        <text class="ablesung" id="svgI" x="300" y="25" text-anchor="middle">0 A</text>
+      </g>
+
+      <!-- Widerstand -->
+      <g id="widerstandG" tabindex="0" role="button" aria-label="Widerstand">
+        <rect class="bauteil" x="418" y="145" width="24" height="60"/>
+        <text class="etikett i" x="404" y="170" text-anchor="end">R</text>
+        <text class="wert" id="svgR" x="404" y="192" text-anchor="end">100 Ω</text>
+      </g>
+      <circle class="knoten" cx="430" cy="120" r="4"/>
+      <circle class="knoten" cx="430" cy="230" r="4"/>
+
+      <!-- Voltmeter -->
+      <g>
+        <circle class="bauteil" cx="520" cy="175" r="22"/>
+        <text class="symbol" x="520" y="175">V</text>
+        <rect class="ablesung-bg" x="463" y="246" width="114" height="30" rx="7"/>
+        <text class="ablesung" id="svgUR" x="520" y="267" text-anchor="middle">0 V</text>
+      </g>
+    </svg>
+    <div class="legende">
+      <label><input type="checkbox" id="zeigeE" checked><span class="lp" aria-hidden="true"></span><span data-i18n="elektronen">Elektronenfluss (− → +)</span></label>
+      <label><input type="checkbox" id="zeigeK" checked><span class="lk" aria-hidden="true"></span><span data-i18n="technisch">Technische Stromrichtung (+ → −)</span></label>
+    </div>
+    <p class="skala" id="skala"></p>
+  </section>
+
+  <!-- Steuerung + Instrumente -->
+  <div class="k-steuer">
+    <section class="karte block">
+      <h2 data-i18n="quelle">Spannungsquelle U₀</h2>
+      <div class="uzeile">
+        <button type="button" class="ikon" id="uMinus" aria-label="−">−</button>
+        <input type="range" id="uSlider" min="0" max="12" step="1" value="0" aria-label="U0">
+        <button type="button" class="ikon" id="uPlus" aria-label="+">+</button>
+        <output id="uWert" for="uSlider" class="tn">0 V</output>
+      </div>
+      <div class="feldzeile">
+        <label><span data-i18n="umax">Maximum</span> <input type="number" id="uMax" min="1" max="1000" step="1" value="12" inputmode="decimal"> V</label>
+        <label><span data-i18n="schritt">Schritt</span>
+          <select id="uSchritt">
+            <option value="0.1">0,1 V</option><option value="0.2">0,2 V</option><option value="0.5">0,5 V</option>
+            <option value="1" selected>1 V</option><option value="2">2 V</option><option value="5">5 V</option><option value="10">10 V</option>
+          </select></label>
+      </div>
+    </section>
+
+    <section class="karte block">
+      <h2 data-i18n="widerstand">Widerstand R</h2>
+      <div class="feldzeile">
+        <label><span data-i18n="wert">Wert</span> <input type="number" id="rWert" min="0.01" max="999.99" step="any" value="100" inputmode="decimal"></label>
+        <label><span data-i18n="praefix">Einheit</span>
+          <select id="rPraefix">
+            <option value="m">mΩ</option><option value="" selected>Ω</option><option value="k">kΩ</option><option value="M">MΩ</option>
+          </select></label>
+      </div>
+    </section>
+
+    <section class="karte block">
+      <h2 data-i18n="schalter">Schalter S</h2>
+      <div class="schalterzeile">
+        <button type="button" id="schalterBtn" aria-pressed="false" data-i18n="schalterZu">Schalter schließen</button>
+        <span class="status" id="schalterStatus"></span>
+      </div>
+    </section>
+
+    <section class="karte block">
+      <h2 data-i18n="messung">Messung</h2>
+      <div class="instr">
+        <div class="anz aus" id="anzUBox"><span class="lbl"><span data-i18n="voltmeter">Voltmeter</span> · <b>U</b></span><strong id="anzU">0 V</strong></div>
+        <div class="anz aus" id="anzIBox"><span class="lbl"><span data-i18n="amperemeter">Amperemeter</span> · <b>I</b></span><strong id="anzI">0 A</strong></div>
+      </div>
+      <p class="formel" id="formel" aria-live="polite"></p>
+      <p class="hinweis" id="hinweisOffen" hidden></p>
+    </section>
+
+    <section class="karte block">
+      <h2 data-i18n="modus">Modus</h2>
+      <div class="feldzeile">
+        <div class="seg" role="group">
+          <button type="button" data-modus="sofort" aria-pressed="true" data-i18n="sofort">Sofort</button>
+          <button type="button" data-modus="reihe" aria-pressed="false" data-i18n="messreihe">Messreihe</button>
+        </div>
+        <span class="status" id="modusText"></span>
+      </div>
+    </section>
+
+    <aside class="qrkarte">
+      <button type="button" class="qrknopf" id="qrKlein" aria-label="QR">
+        <svg viewBox="-3 -3 35 35" shape-rendering="crispEdges" aria-hidden="true"><rect x="-3" y="-3" width="35" height="35" fill="#ffffff"/><path fill="#000000" id="qrPfad1"/></svg>
+      </button>
+      <p class="qrcap" id="qrCap" data-i18n="qrCap">Scannen, um die Simulation zu öffnen</p>
+      <p class="qrurl">temmchen.github.io/<wbr>ohm</p>
+    </aside>
+  </div>
+
+  <!-- Messreihe -->
+  <section class="karte k-mess" id="messKarte" hidden>
+    <div class="messkopf">
+      <h2 data-i18n="tabelle">Messreihe</h2>
+      <button type="button" id="startBtn">▶ <span data-i18n="start">Start</span></button>
+      <button type="button" id="schrittBtn">⏭ <span data-i18n="schrittBtn">Schritt</span></button>
+      <label class="status"><span data-i18n="tempo">Tempo</span>
+        <select id="tempo"><option value="1400" data-i18n="langsam">langsam</option><option value="800" selected data-i18n="normal">normal</option><option value="350" data-i18n="schnell">schnell</option></select>
+      </label>
+      <button type="button" id="neuBtn">↺ <span data-i18n="neu">Neue Reihe</span></button>
+      <button type="button" id="alleBtn" data-i18n="alleLoeschen">Alle löschen</button>
+      <button type="button" id="kopierBtn" data-i18n="kopieren">Kopieren</button>
+    </div>
+    <p class="hinweis" id="hinweisReihe" hidden></p>
+    <div class="messraster">
+      <div>
+        <div class="tabwrap">
+          <table id="tabelle">
+            <caption id="tabCaption"></caption>
+            <thead><tr><th scope="col" data-i18n="spalteNr">Nr.</th><th scope="col" id="thU"><i>U</i> in V</th><th scope="col" id="thI"><i>I</i> in A</th><th scope="col" id="thR"><i>U</i> / <i>I</i> in Ω</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <p class="leer" id="tabLeer" data-i18n="messreiheLeer"></p>
+        </div>
+      </div>
+      <div>
+        <div class="diag" id="diag">
+          <svg id="diagSvg" viewBox="0 0 460 290" role="img" aria-labelledby="diagTitel"><title id="diagTitel">I = f(U)</title></svg>
+          <div class="tooltip" id="tooltip"></div>
+        </div>
+        <p class="diaglegende" id="diagLegende"></p>
+        <p class="notiz" data-i18n="steigung"></p>
+      </div>
+    </div>
+    <div class="herl">
+      <div class="herlkopf">
+        <button type="button" id="herlBtn" aria-expanded="false" aria-controls="herlPanel">∝ <span id="herlBtnText"></span></button>
+        <button type="button" id="herlWeiter" hidden></button>
+        <button type="button" id="herlAlle" hidden></button>
+        <span class="status" id="herlHinweis"></span>
+      </div>
+      <div class="herlpanel" id="herlPanel" hidden></div>
+    </div>
+  </section>
+</main>
+
+<!-- QR groß -->
+<div class="overlay" id="qrGross" hidden role="dialog" aria-modal="true" aria-labelledby="qrGrossTitel">
+  <div class="obox">
+    <h2 id="qrGrossTitel" data-i18n="qrGross">Simulation auf dem Handy öffnen</h2>
+    <div class="qrbox"><svg viewBox="-3 -3 35 35" shape-rendering="crispEdges" role="img" aria-label="https://temmchen.github.io/ohm/"><rect x="-3" y="-3" width="35" height="35" fill="#ffffff"/><path fill="#000000" id="qrPfad2"/></svg></div>
+    <p class="url">temmchen.github.io/ohm</p>
+    <button type="button" id="qrZu" data-i18n="schliessen">Schließen</button>
+  </div>
+</div>
+
+<!-- Hilfe -->
+<div class="overlay" id="hilfe" hidden role="dialog" aria-modal="true" aria-labelledby="hilfeTitel">
+  <div class="obox">
+    <h2 id="hilfeTitel" data-i18n="tasten">Tastatur</h2>
+    <div class="hilfe"><table><tbody id="hilfeTab"></tbody></table></div>
+    <button type="button" id="hilfeZu" data-i18n="schliessen">Schließen</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ==================================================================
+   Ohmsches Gesetz – Simulation. Vanilla JS, keine Abhängigkeiten.
+   Aufbau: Texte (3 Sprachen) · Zustand · Formatierung · Schaltbild/
+   Animation · Steuerung · Messreihe (Tabelle + Kennlinie) · Overlays.
+   ================================================================== */
+
+const URL_SEITE = 'https://temmchen.github.io/ohm/';
+const QR_PFAD = 'M0 0h7v1h-7zM9 0h1v1h-1zM15 0h1v1h-1zM18 0h1v1h-1zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h2v1h-2zM12 1h1v1h-1zM16 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM12 2h2v1h-2zM16 2h1v1h-1zM20 2h1v1h-1zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h2v1h-2zM11 3h1v1h-1zM14 3h1v1h-1zM16 3h2v1h-2zM19 3h2v1h-2zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h5v1h-5zM16 4h1v1h-1zM18 4h2v1h-2zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h2v1h-2zM13 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM8 7h1v1h-1zM11 7h2v1h-2zM14 7h1v1h-1zM16 7h1v1h-1zM19 7h1v1h-1zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM12 8h1v1h-1zM14 8h4v1h-4zM19 8h1v1h-1zM21 8h2v1h-2zM24 8h2v1h-2zM27 8h1v1h-1zM2 9h2v1h-2zM5 9h1v1h-1zM7 9h4v1h-4zM13 9h3v1h-3zM17 9h4v1h-4zM23 9h5v1h-5zM1 10h1v1h-1zM6 10h2v1h-2zM9 10h2v1h-2zM12 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM21 10h2v1h-2zM24 10h2v1h-2zM0 11h1v1h-1zM2 11h1v1h-1zM4 11h1v1h-1zM8 11h1v1h-1zM11 11h2v1h-2zM14 11h2v1h-2zM17 11h1v1h-1zM19 11h2v1h-2zM24 11h2v1h-2zM28 11h1v1h-1zM0 12h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM10 12h2v1h-2zM20 12h3v1h-3zM25 12h1v1h-1zM27 12h1v1h-1zM4 13h2v1h-2zM9 13h3v1h-3zM13 13h1v1h-1zM15 13h1v1h-1zM17 13h2v1h-2zM22 13h1v1h-1zM24 13h1v1h-1zM26 13h1v1h-1zM28 13h1v1h-1zM0 14h1v1h-1zM2 14h1v1h-1zM6 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM15 14h2v1h-2zM18 14h2v1h-2zM21 14h3v1h-3zM25 14h1v1h-1zM28 14h1v1h-1zM2 15h3v1h-3zM9 15h1v1h-1zM13 15h1v1h-1zM15 15h2v1h-2zM18 15h1v1h-1zM24 15h3v1h-3zM0 16h3v1h-3zM4 16h1v1h-1zM6 16h1v1h-1zM10 16h2v1h-2zM14 16h2v1h-2zM20 16h2v1h-2zM25 16h1v1h-1zM28 16h1v1h-1zM0 17h1v1h-1zM2 17h1v1h-1zM9 17h2v1h-2zM12 17h3v1h-3zM16 17h5v1h-5zM24 17h1v1h-1zM26 17h1v1h-1zM0 18h9v1h-9zM10 18h2v1h-2zM13 18h1v1h-1zM15 18h2v1h-2zM18 18h2v1h-2zM23 18h2v1h-2zM26 18h1v1h-1zM28 18h1v1h-1zM0 19h3v1h-3zM5 19h1v1h-1zM7 19h1v1h-1zM12 19h3v1h-3zM19 19h4v1h-4zM26 19h3v1h-3zM0 20h2v1h-2zM5 20h4v1h-4zM12 20h1v1h-1zM14 20h4v1h-4zM20 20h5v1h-5zM26 20h1v1h-1zM8 21h3v1h-3zM13 21h1v1h-1zM15 21h1v1h-1zM17 21h4v1h-4zM24 21h3v1h-3zM0 22h7v1h-7zM9 22h1v1h-1zM13 22h1v1h-1zM15 22h3v1h-3zM19 22h2v1h-2zM22 22h1v1h-1zM24 22h1v1h-1zM26 22h2v1h-2zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h4v1h-4zM14 23h1v1h-1zM17 23h1v1h-1zM19 23h2v1h-2zM24 23h2v1h-2zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM8 24h9v1h-9zM18 24h7v1h-7zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM8 25h3v1h-3zM17 25h2v1h-2zM23 25h1v1h-1zM26 25h2v1h-2zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM12 26h1v1h-1zM14 26h2v1h-2zM18 26h1v1h-1zM20 26h2v1h-2zM23 26h3v1h-3zM27 26h2v1h-2zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM11 27h1v1h-1zM14 27h2v1h-2zM18 27h1v1h-1zM21 27h1v1h-1zM24 27h3v1h-3zM28 27h1v1h-1zM0 28h7v1h-7zM9 28h5v1h-5zM19 28h6v1h-6z';
+
+const TEXTE = {
+  de: {
+    titel:'Ohmsches Gesetz', unter:'Einfacher Stromkreis: Spannung, Strom und Widerstand',
+    schaltung:'Schaltung', quelle:'Spannungsquelle U₀', umax:'Maximum', schritt:'Schritt',
+    widerstand:'Widerstand R', wert:'Wert', praefix:'Einheit',
+    schalter:'Schalter S', offen:'offen', geschlossen:'geschlossen', schalterZu:'Schalter schließen', schalterAuf:'Schalter öffnen', status:'Zustand',
+    messung:'Messung', voltmeter:'Voltmeter', amperemeter:'Amperemeter',
+    modus:'Modus', sofort:'Sofort', messreihe:'Messreihe',
+    modusSofort:'Jede Änderung wird sofort angezeigt.', modusReihe:'Jede Änderung von U₀ trägt einen Messwert in die Tabelle ein.',
+    elektronen:'Elektronenfluss (− → +)', technisch:'Technische Stromrichtung (+ → −)',
+    skala:'Animation: Tempo der Teilchen ∝ I · volles Tempo bei', skalaAus:'Animation: kein Strom – die Teilchen ruhen.',
+    hinweisOffen:'Schalter offen: kein Strom (I = 0). Das Voltmeter am Widerstand zeigt 0 V – die Spannung U₀ liegt jetzt am offenen Schalter.',
+    hinweisNull:'U₀ = 0 V: Ohne Spannung fließt kein Strom.',
+    tabelle:'Messreihe', start:'Start', pause:'Pause', schrittBtn:'Schritt', neu:'Neue Reihe', alleLoeschen:'Alle löschen', kopieren:'Kopieren', kopiert:'Kopiert ✓',
+    tempo:'Tempo', langsam:'langsam', normal:'normal', schnell:'schnell',
+    spalteNr:'Nr.', reihe:'Reihe', caption:'Messwerte für R =',
+    diagramm:'Kennlinie I = f(U)',
+    steigung:'Die Messpunkte liegen auf einer Geraden durch den Ursprung: I ist proportional zu U. Die Steigung I / U = 1 / R ist konstant – je größer R, desto flacher die Gerade.',
+    messreiheLeer:'Noch keine Messwerte. „Start“ fährt U₀ automatisch von 0 bis zum Maximum; jede Änderung von U₀ trägt einen Messwert ein. Wird R geändert, beginnt eine neue Reihe (bis zu drei bleiben im Diagramm).',
+    schalterOffenWarn:'Zuerst den Schalter schließen – sonst gibt es nichts zu messen.',
+    qrCap:'Scannen, um die Simulation zu öffnen', qrGross:'Simulation auf dem Handy öffnen', schliessen:'Schließen',
+    vollTitel:'Vollbild (F)', themaTitel:'Hell / dunkel', qrTitel:'QR-Code (Q)', hilfeTitel:'Tastatur (H)', tasten:'Tastatur',
+    hilfe:[['S','Schalter öffnen / schließen'],['+ / − oder ↑ / ↓','Spannung U₀ um einen Schritt ändern'],['Leertaste','Messreihe starten / anhalten (im Modus Messreihe)'],['E','Elektronenfluss ein / aus'],['T','Technische Stromrichtung ein / aus'],['M','Modus Sofort / Messreihe'],['F','Vollbild'],['Q','QR-Code bildschirmfüllend'],['H','Diese Hilfe']],
+    sbTitel:'Stromkreis: Quelle, Schalter, Amperemeter, Widerstand, Voltmeter', quelleAria:'Spannungsquelle', widerstandAria:'Widerstand', schalterAria:'Schalter S',
+    herlBtn:'Herleitung des Ohmschen Gesetzes', herlZu:'Herleitung ausblenden', herlWeiter:'Nächster Schritt', herlAlle:'Alle Schritte',
+    herlHinweis:'Für die Herleitung zuerst mindestens drei Messwerte aufnehmen (z. B. mit „Start“).',
+    herlNurAktuell:'Während der Herleitung zeigt das Diagramm nur die aktuelle Reihe.',
+    dU:'ΔU', dI:'ΔI',
+    herl: d => [
+      {t:'Beobachtung',
+       p:`Wird die Spannung von ${fmtU(d.p1.u)} auf ${fmtU(d.p2.u)} erhöht (Faktor ${nf(d.k, 2)}), steigt die Stromstärke von ${fmtEinheit(d.p1.i, 'A')} auf ${fmtEinheit(d.p2.i, 'A')} – ebenfalls um den Faktor ${nf(d.k2, 2)}. Spannung und Stromstärke ändern sich im gleichen Verhältnis.`,
+       f:[`<i>U</i><sub>2</sub> / <i>U</i><sub>1</sub> = ${fmtU(d.p2.u)} / ${fmtU(d.p1.u)} = ${nf(d.k, 2)}`, `<i>I</i><sub>2</sub> / <i>I</i><sub>1</sub> = ${fmtEinheit(d.p2.i, 'A')} / ${fmtEinheit(d.p1.i, 'A')} = ${nf(d.k2, 2)}`]},
+      {t:'Quotient prüfen',
+       p:'Für jede Zeile der Tabelle ist der Quotient I / U gleich groß. Zwei Größen, deren Quotient konstant ist, sind zueinander proportional: I ~ U.',
+       f:[`<i>I</i> / <i>U</i> = ${d.quot.map(q => `${fmtEinheit(q.i, 'A')} / ${fmtU(q.u)}`).join(' = ')} = ${fmtEinheit(d.m, 'A/V')}`, `<i>I</i> / <i>U</i> = konstant &nbsp;⇒&nbsp; <i>I</i> ~ <i>U</i>`]},
+      {t:'Kennlinie als Funktion',
+       p:'Im Diagramm liegen alle Messpunkte auf einer Geraden. Eine Gerade beschreibt eine lineare Funktion I = m · U + b mit der Steigung m und dem Achsenabschnitt b. Bei U = 0 V fließt kein Strom (I = 0 A), also ist b = 0: Die Gerade geht durch den Ursprung – I ist eine proportionale Funktion von U.',
+       f:[`<i>I</i> = <i>m</i> · <i>U</i> + <i>b</i>`, `<i>U</i> = 0 &nbsp;⇒&nbsp; <i>I</i> = 0 &nbsp;⇒&nbsp; <i>b</i> = 0`, `<i>I</i> = <i>m</i> · <i>U</i>`]},
+      {t:'Proportionalitätsfaktor = Steigung',
+       p:'Der Proportionalitätsfaktor m ist die Steigung der Ursprungsgeraden. Man liest ihn am Steigungsdreieck ab (im Diagramm eingezeichnet): m = ΔI / ΔU. Dieser Faktor heißt Leitwert G; seine Einheit ist A/V = S (Siemens).',
+       f:[`<i>m</i> = Δ<i>I</i> / Δ<i>U</i> = (${fmtEinheit(d.last.i, 'A')} − 0\u00a0A) / (${fmtU(d.last.u)} − 0\u00a0V) = ${fmtEinheit(d.m, 'A/V')} = ${fmtEinheit(d.m, 'S')}`]},
+      {t:'Widerstand als Kehrwert',
+       p:'Der Kehrwert des Proportionalitätsfaktors ist der elektrische Widerstand R. Er gibt an, wie viel Spannung je Ampere nötig ist; Einheit V/A = Ω (Ohm). Genau dieser Wert steht in jeder Zeile der Tabelle in der Spalte U / I.',
+       f:[`<i>R</i> = 1 / <i>m</i> = Δ<i>U</i> / Δ<i>I</i> = ${fmtU(d.last.u)} / ${fmtEinheit(d.last.i, 'A')} = ${fmtR(d.r)}`]},
+      {t:'Ohmsches Gesetz',
+       p:'Bei konstanter Temperatur ist die Stromstärke in einem metallischen Leiter proportional zur angelegten Spannung; der Proportionalitätsfaktor ist 1 / R. Ein Bauteil, das dieses Gesetz erfüllt, heißt ohmscher Widerstand – seine Kennlinie ist eine Ursprungsgerade (Georg Simon Ohm, 1826).',
+       f:[`<i>I</i> = <i>U</i> / <i>R</i>`, `<i>U</i> = <i>R</i> · <i>I</i>`, `<i>R</i> = <i>U</i> / <i>I</i>`]}
+    ],
+    locale:'de-DE'
+  },
+  fr: {
+    titel:'Loi d’Ohm', unter:'Circuit simple : tension, courant et résistance',
+    schaltung:'Schéma', quelle:'Source de tension U₀', umax:'Maximum', schritt:'Pas',
+    widerstand:'Résistance R', wert:'Valeur', praefix:'Unité',
+    schalter:'Interrupteur S', offen:'ouvert', geschlossen:'fermé', schalterZu:'Fermer l’interrupteur', schalterAuf:'Ouvrir l’interrupteur', status:'État',
+    messung:'Mesure', voltmeter:'Voltmètre', amperemeter:'Ampèremètre',
+    modus:'Mode', sofort:'Instantané', messreihe:'Série de mesures',
+    modusSofort:'Chaque modification s’affiche immédiatement.', modusReihe:'Chaque modification de U₀ ajoute une mesure au tableau.',
+    elektronen:'Flux d’électrons (− → +)', technisch:'Sens conventionnel du courant (+ → −)',
+    skala:'Animation : vitesse des particules ∝ I · vitesse maximale pour', skalaAus:'Animation : pas de courant – les particules sont au repos.',
+    hinweisOffen:'Interrupteur ouvert : pas de courant (I = 0). Le voltmètre aux bornes de la résistance indique 0 V – la tension U₀ se trouve maintenant aux bornes de l’interrupteur ouvert.',
+    hinweisNull:'U₀ = 0 V : sans tension, pas de courant.',
+    tabelle:'Série de mesures', start:'Démarrer', pause:'Pause', schrittBtn:'Pas', neu:'Nouvelle série', alleLoeschen:'Tout effacer', kopieren:'Copier', kopiert:'Copié ✓',
+    tempo:'Vitesse', langsam:'lente', normal:'normale', schnell:'rapide',
+    spalteNr:'N°', reihe:'Série', caption:'Mesures pour R =',
+    diagramm:'Caractéristique I = f(U)',
+    steigung:'Les points de mesure sont alignés sur une droite passant par l’origine : I est proportionnel à U. La pente I / U = 1 / R est constante – plus R est grand, plus la droite est plate.',
+    messreiheLeer:'Pas encore de mesures. « Démarrer » fait varier U₀ automatiquement de 0 au maximum ; chaque modification de U₀ ajoute une mesure. Si R change, une nouvelle série commence (le diagramme en garde jusqu’à trois).',
+    schalterOffenWarn:'Fermer d’abord l’interrupteur – sinon il n’y a rien à mesurer.',
+    qrCap:'Scanner pour ouvrir la simulation', qrGross:'Ouvrir la simulation sur le téléphone', schliessen:'Fermer',
+    vollTitel:'Plein écran (F)', themaTitel:'Clair / sombre', qrTitel:'Code QR (Q)', hilfeTitel:'Clavier (H)', tasten:'Clavier',
+    hilfe:[['S','Ouvrir / fermer l’interrupteur'],['+ / − ou ↑ / ↓','Modifier la tension U₀ d’un pas'],['Espace','Démarrer / arrêter la série (mode Série de mesures)'],['E','Flux d’électrons oui / non'],['T','Sens conventionnel oui / non'],['M','Mode Instantané / Série'],['F','Plein écran'],['Q','Code QR plein écran'],['H','Cette aide']],
+    sbTitel:'Circuit : source, interrupteur, ampèremètre, résistance, voltmètre', quelleAria:'Source de tension', widerstandAria:'Résistance', schalterAria:'Interrupteur S',
+    herlBtn:'Établir la loi d’Ohm', herlZu:'Masquer la démarche', herlWeiter:'Étape suivante', herlAlle:'Toutes les étapes',
+    herlHinweis:'Pour établir la loi, enregistrer d’abord au moins trois mesures (p. ex. avec « Démarrer »).',
+    herlNurAktuell:'Pendant la démarche, le diagramme ne montre que la série actuelle.',
+    dU:'ΔU', dI:'ΔI',
+    herl: d => [
+      {t:'Observation',
+       p:`Lorsque la tension passe de ${fmtU(d.p1.u)} à ${fmtU(d.p2.u)} (facteur ${nf(d.k, 2)}), l’intensité passe de ${fmtEinheit(d.p1.i, 'A')} à ${fmtEinheit(d.p2.i, 'A')} – elle est multipliée par le même facteur ${nf(d.k2, 2)}. Tension et intensité varient dans le même rapport.`,
+       f:[`<i>U</i><sub>2</sub> / <i>U</i><sub>1</sub> = ${fmtU(d.p2.u)} / ${fmtU(d.p1.u)} = ${nf(d.k, 2)}`, `<i>I</i><sub>2</sub> / <i>I</i><sub>1</sub> = ${fmtEinheit(d.p2.i, 'A')} / ${fmtEinheit(d.p1.i, 'A')} = ${nf(d.k2, 2)}`]},
+      {t:'Vérifier le quotient',
+       p:'Pour chaque ligne du tableau, le quotient I / U a la même valeur. Deux grandeurs dont le quotient est constant sont proportionnelles : I ∝ U.',
+       f:[`<i>I</i> / <i>U</i> = ${d.quot.map(q => `${fmtEinheit(q.i, 'A')} / ${fmtU(q.u)}`).join(' = ')} = ${fmtEinheit(d.m, 'A/V')}`, `<i>I</i> / <i>U</i> = constante &nbsp;⇒&nbsp; <i>I</i> ∝ <i>U</i>`]},
+      {t:'La caractéristique comme fonction',
+       p:'Dans le diagramme, tous les points de mesure sont alignés sur une droite. Une droite représente une fonction affine I = a · U + b, de pente a et d’ordonnée à l’origine b. Pour U = 0 V, aucun courant ne circule (I = 0 A), donc b = 0 : la droite passe par l’origine – c’est une fonction linéaire, I est proportionnelle à U.',
+       f:[`<i>I</i> = <i>a</i> · <i>U</i> + <i>b</i>`, `<i>U</i> = 0 &nbsp;⇒&nbsp; <i>I</i> = 0 &nbsp;⇒&nbsp; <i>b</i> = 0`, `<i>I</i> = <i>a</i> · <i>U</i>`]},
+      {t:'Coefficient de proportionnalité = pente',
+       p:'Le coefficient de proportionnalité a est la pente de la droite. On le lit sur le triangle de pente (tracé dans le diagramme) : a = ΔI / ΔU. Ce coefficient s’appelle la conductance G ; son unité est A/V = S (siemens).',
+       f:[`<i>a</i> = Δ<i>I</i> / Δ<i>U</i> = (${fmtEinheit(d.last.i, 'A')} − 0\u00a0A) / (${fmtU(d.last.u)} − 0\u00a0V) = ${fmtEinheit(d.m, 'A/V')} = ${fmtEinheit(d.m, 'S')}`]},
+      {t:'La résistance, inverse du coefficient',
+       p:'L’inverse du coefficient de proportionnalité est la résistance électrique R. Elle indique la tension nécessaire par ampère ; unité V/A = Ω (ohm). C’est exactement la valeur de la colonne U / I du tableau, identique à chaque ligne.',
+       f:[`<i>R</i> = 1 / <i>a</i> = Δ<i>U</i> / Δ<i>I</i> = ${fmtU(d.last.u)} / ${fmtEinheit(d.last.i, 'A')} = ${fmtR(d.r)}`]},
+      {t:'Loi d’Ohm',
+       p:'À température constante, l’intensité du courant dans un conducteur métallique est proportionnelle à la tension appliquée ; le coefficient de proportionnalité est 1 / R. Un dipôle qui vérifie cette loi est un conducteur ohmique – sa caractéristique est une droite passant par l’origine (Georg Simon Ohm, 1826).',
+       f:[`<i>I</i> = <i>U</i> / <i>R</i>`, `<i>U</i> = <i>R</i> · <i>I</i>`, `<i>R</i> = <i>U</i> / <i>I</i>`]}
+    ],
+    locale:'fr-FR'
+  },
+  en: {
+    titel:'Ohm’s Law', unter:'Simple circuit: voltage, current and resistance',
+    schaltung:'Circuit', quelle:'Voltage source U₀', umax:'Maximum', schritt:'Step',
+    widerstand:'Resistor R', wert:'Value', praefix:'Unit',
+    schalter:'Switch S', offen:'open', geschlossen:'closed', schalterZu:'Close the switch', schalterAuf:'Open the switch', status:'State',
+    messung:'Measurement', voltmeter:'Voltmeter', amperemeter:'Ammeter',
+    modus:'Mode', sofort:'Instant', messreihe:'Measurement series',
+    modusSofort:'Every change is shown immediately.', modusReihe:'Every change of U₀ records a reading in the table.',
+    elektronen:'Electron flow (− → +)', technisch:'Conventional current (+ → −)',
+    skala:'Animation: particle speed ∝ I · full speed at', skalaAus:'Animation: no current – the particles are at rest.',
+    hinweisOffen:'Switch open: no current (I = 0). The voltmeter across the resistor reads 0 V – the voltage U₀ now appears across the open switch.',
+    hinweisNull:'U₀ = 0 V: without voltage there is no current.',
+    tabelle:'Measurement series', start:'Start', pause:'Pause', schrittBtn:'Step', neu:'New series', alleLoeschen:'Clear all', kopieren:'Copy', kopiert:'Copied ✓',
+    tempo:'Speed', langsam:'slow', normal:'normal', schnell:'fast',
+    spalteNr:'No.', reihe:'Series', caption:'Readings for R =',
+    diagramm:'Characteristic I = f(U)',
+    steigung:'The data points lie on a straight line through the origin: I is proportional to U. The slope I / U = 1 / R is constant – the larger R, the flatter the line.',
+    messreiheLeer:'No readings yet. “Start” sweeps U₀ automatically from 0 to the maximum; every change of U₀ records a reading. Changing R starts a new series (the chart keeps up to three).',
+    schalterOffenWarn:'Close the switch first – otherwise there is nothing to measure.',
+    qrCap:'Scan to open the simulation', qrGross:'Open the simulation on your phone', schliessen:'Close',
+    vollTitel:'Full screen (F)', themaTitel:'Light / dark', qrTitel:'QR code (Q)', hilfeTitel:'Keyboard (H)', tasten:'Keyboard',
+    hilfe:[['S','Open / close the switch'],['+ / − or ↑ / ↓','Change the voltage U₀ by one step'],['Space','Start / pause the series (Measurement series mode)'],['E','Electron flow on / off'],['T','Conventional current on / off'],['M','Mode Instant / Series'],['F','Full screen'],['Q','QR code full screen'],['H','This help']],
+    sbTitel:'Circuit: source, switch, ammeter, resistor, voltmeter', quelleAria:'Voltage source', widerstandAria:'Resistor', schalterAria:'Switch S',
+    herlBtn:'Derive Ohm’s law', herlZu:'Hide derivation', herlWeiter:'Next step', herlAlle:'All steps',
+    herlHinweis:'To derive the law, record at least three readings first (e.g. with “Start”).',
+    herlNurAktuell:'During the derivation the chart shows only the current series.',
+    dU:'ΔU', dI:'ΔI',
+    herl: d => [
+      {t:'Observation',
+       p:`When the voltage is raised from ${fmtU(d.p1.u)} to ${fmtU(d.p2.u)} (factor ${nf(d.k, 2)}), the current rises from ${fmtEinheit(d.p1.i, 'A')} to ${fmtEinheit(d.p2.i, 'A')} – by the same factor ${nf(d.k2, 2)}. Voltage and current change in the same ratio.`,
+       f:[`<i>U</i><sub>2</sub> / <i>U</i><sub>1</sub> = ${fmtU(d.p2.u)} / ${fmtU(d.p1.u)} = ${nf(d.k, 2)}`, `<i>I</i><sub>2</sub> / <i>I</i><sub>1</sub> = ${fmtEinheit(d.p2.i, 'A')} / ${fmtEinheit(d.p1.i, 'A')} = ${nf(d.k2, 2)}`]},
+      {t:'Check the quotient',
+       p:'For every row of the table the quotient I / U has the same value. Two quantities whose quotient is constant are proportional: I ∝ U.',
+       f:[`<i>I</i> / <i>U</i> = ${d.quot.map(q => `${fmtEinheit(q.i, 'A')} / ${fmtU(q.u)}`).join(' = ')} = ${fmtEinheit(d.m, 'A/V')}`, `<i>I</i> / <i>U</i> = constant &nbsp;⇒&nbsp; <i>I</i> ∝ <i>U</i>`]},
+      {t:'The characteristic as a function',
+       p:'In the chart all data points lie on a straight line. A straight line represents a linear function I = m · U + b with slope m and intercept b. At U = 0 V no current flows (I = 0 A), so b = 0: the line passes through the origin – I is directly proportional to U.',
+       f:[`<i>I</i> = <i>m</i> · <i>U</i> + <i>b</i>`, `<i>U</i> = 0 &nbsp;⇒&nbsp; <i>I</i> = 0 &nbsp;⇒&nbsp; <i>b</i> = 0`, `<i>I</i> = <i>m</i> · <i>U</i>`]},
+      {t:'Constant of proportionality = slope',
+       p:'The constant of proportionality m is the slope of the line. It is read from the slope triangle (drawn in the chart): m = ΔI / ΔU. This constant is called the conductance G; its unit is A/V = S (siemens).',
+       f:[`<i>m</i> = Δ<i>I</i> / Δ<i>U</i> = (${fmtEinheit(d.last.i, 'A')} − 0\u00a0A) / (${fmtU(d.last.u)} − 0\u00a0V) = ${fmtEinheit(d.m, 'A/V')} = ${fmtEinheit(d.m, 'S')}`]},
+      {t:'Resistance as the reciprocal',
+       p:'The reciprocal of the constant of proportionality is the electrical resistance R. It states how much voltage is needed per ampere; unit V/A = Ω (ohm). This is exactly the value in the U / I column of the table, the same in every row.',
+       f:[`<i>R</i> = 1 / <i>m</i> = Δ<i>U</i> / Δ<i>I</i> = ${fmtU(d.last.u)} / ${fmtEinheit(d.last.i, 'A')} = ${fmtR(d.r)}`]},
+      {t:'Ohm’s law',
+       p:'At constant temperature the current through a metallic conductor is proportional to the applied voltage; the constant of proportionality is 1 / R. A component obeying this law is called an ohmic resistor – its characteristic is a straight line through the origin (Georg Simon Ohm, 1826).',
+       f:[`<i>I</i> = <i>U</i> / <i>R</i>`, `<i>U</i> = <i>R</i> · <i>I</i>`, `<i>R</i> = <i>U</i> / <i>I</i>`]}
+    ],
+    locale:'en-GB'
+  }
+};
+
+const PRAEFIX = {m:1e-3, '':1, k:1e3, M:1e6};
+const REDUZIERT = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+
+/* ---------- Zustand ---------- */
+const S = {
+  lang:'de', u:0, umax:12, schritt:1, rWert:100, rPraefix:'', zu:false, modus:'sofort',
+  zeigeE:true, zeigeK:true,
+  reihen:[],            // [{r, punkte:Map<key,{u,i}>}] – letzte = aktuelle Reihe
+  laeuft:false, timer:null, letzterKey:null,
+  herlOffen:false, herlStufe:0
+};
+const R = () => S.rWert * PRAEFIX[S.rPraefix];
+const I = () => (S.zu && R() > 0) ? S.u / R() : 0;
+const UR = () => S.zu ? S.u : 0;
+const T = () => TEXTE[S.lang];
+
+/* ---------- Formatierung ---------- */
+function nf(x, maxFrac, minFrac){
+  return new Intl.NumberFormat(T().locale, {maximumFractionDigits:maxFrac, minimumFractionDigits:minFrac ?? 0}).format(x);
+}
+function sig(x, n){ // n signifikante Stellen, keine Exponentialschreibweise
+  if (x === 0) return nf(0, 0);
+  return new Intl.NumberFormat(T().locale, {maximumSignificantDigits:n}).format(x);
+}
+const PRAEFIXE = [[1e9,'G'],[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p']];
+function praefixFuer(x){ // {f, p}: Mantisse in [1,1000)
+  const a = Math.abs(x);
+  if (a === 0) return {f:1, p:''};
+  for (const [f, p] of PRAEFIXE) if (a >= f * 0.9995) return {f, p};
+  return {f:1e-12, p:'p'};
+}
+function fmtEinheit(x, einheit, stellen = 3){ // z. B. 0.12 → "120 mA"
+  if (x === 0) return `0\u00a0${einheit}`;
+  const {f, p} = praefixFuer(x);
+  return `${sig(x / f, stellen)}\u00a0${p}${einheit}`;
+}
+function dezimalenVon(schritt){ const s = String(schritt); const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
+function fmtU(u){ return `${nf(u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}\u00a0V`; }
+function fmtR(r){ // Widerstand mit Eingabe-Präfix, falls möglich
+  if (Math.abs(r - R()) < 1e-12) return `${sig(S.rWert, 5)}\u00a0${S.rPraefix}Ω`;
+  return fmtEinheit(r, 'Ω', 4);
+}
+function fmtROhm(r){ return `${nf(r, 6)}\u00a0Ω`; }
+
+/* ---------- Sprache ---------- */
+function setzeSprache(l){
+  if (!TEXTE[l]) return;
+  S.lang = l;
+  document.documentElement.lang = l;
+  const t = T();
+  document.title = t.titel;
+  document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.dataset.i18n; if (t[k] !== undefined) el.textContent = t[k]; });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { const k = el.dataset.i18nTitle; el.title = t[k]; el.setAttribute('aria-label', t[k]); });
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
+  $('sbTitel').textContent = t.sbTitel;
+  $('quelleG').setAttribute('aria-label', t.quelleAria);
+  $('widerstandG').setAttribute('aria-label', t.widerstandAria);
+  document.querySelector('.schaltertreffer').setAttribute('aria-label', t.schalterAria);
+  // Schritt-Optionen mit lokalem Dezimaltrennzeichen
+  $('uSchritt').querySelectorAll('option').forEach(o => { o.textContent = `${nf(parseFloat(o.value), 1)} V`; });
+  $('hilfeTab').innerHTML = t.hilfe.map(([k, v]) => `<tr><td><kbd>${k}</kbd></td><td>${v}</td></tr>`).join('');
+  $('startBtn').innerHTML = (S.laeuft ? '⏸ ' : '▶ ') + (S.laeuft ? t.pause : t.start);
+  try { localStorage.setItem('ohm-lang', l); } catch (e) {}
+  alles();
+}
+
+/* ---------- Schaltbild & Animation ---------- */
+const bahn = $('bahn');
+const L = bahn.getTotalLength();
+const N_E = 34, N_K = 17;
+const elekG = $('elektronen'), pfeilG = $('pfeile');
+const elektronen = [], pfeile = [];
+(function baueTeilchen(){
+  const ns = 'http://www.w3.org/2000/svg';
+  for (let i = 0; i < N_E; i++){
+    const g = document.createElementNS(ns, 'g'); g.setAttribute('class', 'elektron');
+    const c = document.createElementNS(ns, 'circle'); c.setAttribute('r', '4.6');
+    const l = document.createElementNS(ns, 'line'); l.setAttribute('x1', '-2.3'); l.setAttribute('x2', '2.3'); l.setAttribute('y1', '0'); l.setAttribute('y2', '0');
+    g.appendChild(c); g.appendChild(l); elekG.appendChild(g); elektronen.push(g);
+  }
+  for (let i = 0; i < N_K; i++){
+    const p = document.createElementNS(ns, 'polygon'); p.setAttribute('class', 'pfeil'); p.setAttribute('points', '-6,-5.5 7,0 -6,5.5');
+    pfeilG.appendChild(p); pfeile.push(p);
+  }
+})();
+let versatz = 0, letzteZeit = null, rafId = null;
+
+function tempoPxProS(){
+  // Skala: volles Tempo (V_MAX) bei I_ref = U_max / R_dekade, R_dekade = 10^floor(log10 R).
+  // Innerhalb einer Dekade von R ist das Tempo streng proportional zu I (Verdopplung sichtbar).
+  const i = I(); if (i <= 0) return 0;
+  const v = V_MAX * i / iRef();
+  return Math.max(4, Math.min(V_MAX * 1.6, v));
+}
+const V_MAX = 240;
+function rDekade(){ const r = R(); return Math.pow(10, Math.floor(Math.log10(r))); }
+function iRef(){ return S.umax / rDekade(); }
+
+function setzeTeilchen(){
+  // Positionen entlang der Bahn; Elektronen entgegen dem Uhrzeigersinn (−s), technische Richtung +s.
+  // Elektronen sind immer im Leiter (auch ohne Strom), Pfeile der technischen Richtung nur bei I > 0.
+  const zeigeE = S.zeigeE, zeigeK = S.zeigeK && I() > 0;
+  elekG.style.display = zeigeE ? '' : 'none';
+  pfeilG.style.display = zeigeK ? '' : 'none';
+  if (zeigeE){
+    const d = L / N_E;
+    for (let k = 0; k < N_E; k++){
+      let s = (k * d - versatz) % L; if (s < 0) s += L;
+      const p = punktMitNormale(s, 0);
+      // in der Lücke des offenen Schalters gibt es keinen Leiter
+      const inLuecke = !S.zu && p.y < 62 && p.x > 146 && p.x < 199;
+      elektronen[k].style.display = inLuecke ? 'none' : '';
+      elektronen[k].setAttribute('transform', `translate(${p.x.toFixed(1)},${p.y.toFixed(1)})`);
+    }
+  }
+  if (zeigeK){
+    const d = L / N_K;
+    for (let k = 0; k < N_K; k++){
+      let s = (k * d + versatz * 0.5 + d / 2) % L; if (s < 0) s += L;
+      const p = punktMitNormale(s, 11); // 11 px außerhalb des Drahtes
+      pfeile[k].setAttribute('transform', `translate(${p.x.toFixed(1)},${p.y.toFixed(1)}) rotate(${p.winkel.toFixed(1)})`);
+    }
+  }
+}
+function punktMitNormale(s, abstand){
+  const a = bahn.getPointAtLength(s);
+  const b = bahn.getPointAtLength((s + 1.5) % L);
+  let dx = b.x - a.x, dy = b.y - a.y; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+  // Außen-Normale bei Umlauf im Uhrzeigersinn (Bildschirmkoordinaten): (dy, −dx)
+  return {x:a.x + dy * abstand, y:a.y - dx * abstand, winkel:Math.atan2(dy, dx) * 180 / Math.PI};
+}
+function schleife(t){
+  rafId = null;
+  const v = REDUZIERT ? 0 : tempoPxProS();
+  if (letzteZeit !== null && v > 0){
+    versatz = (versatz + v * Math.min(0.05, (t - letzteZeit) / 1000)) % L;
+    setzeTeilchen();
+  }
+  letzteZeit = t;
+  if (v > 0 && document.visibilityState !== 'hidden') rafId = requestAnimationFrame(schleife);
+}
+function starteAnimation(){
+  letzteZeit = null;
+  if (rafId === null) rafId = requestAnimationFrame(schleife);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') starteAnimation(); });
+
+function maleSchaltbild(){
+  const t = T();
+  $('blatt').classList.toggle('offen', !S.zu);
+  document.querySelector('.schaltertreffer').setAttribute('aria-checked', String(S.zu));
+  $('svgU0').textContent = fmtU(S.u);
+  $('svgR').textContent = fmtR(R());
+  $('svgI').textContent = fmtEinheit(I(), 'A');
+  $('svgUR').textContent = fmtEinheit(UR(), 'V');
+  const stromDa = I() > 0;
+  $('bogenK').style.display = (S.zeigeK && stromDa) ? '' : 'none';
+  $('bogenE').style.display = (S.zeigeE && stromDa) ? '' : 'none';
+  setzeTeilchen();
+  $('skala').textContent = stromDa ? `${t.skala} ${fmtEinheit(iRef(), 'A')}` : t.skalaAus;
+  starteAnimation();
+}
+
+/* ---------- Steuerung ---------- */
+function runde(u){ const n = Math.round(u / S.schritt); return Math.min(S.umax, Math.max(0, +(n * S.schritt).toFixed(6))); }
+function setzeU(u, {ausReihe = false} = {}){
+  S.u = runde(u);
+  $('uSlider').value = S.u;
+  if (S.modus === 'reihe' && !ausReihe) messwertAufnehmen();
+  alles();
+}
+function slider(){ setzeU(parseFloat($('uSlider').value)); }
+function schrittU(dir){ setzeU(S.u + dir * S.schritt); }
+function setzeUmax(){
+  let v = parseFloat($('uMax').value);
+  if (!isFinite(v) || v <= 0) { $('uMax').value = S.umax; return; }
+  v = Math.min(1000, v); S.umax = v; $('uMax').value = v;
+  $('uSlider').max = v;
+  if (S.u > v) S.u = runde(v);
+  stopReihe();
+  alles();
+}
+function setzeSchritt(){
+  S.schritt = parseFloat($('uSchritt').value);
+  $('uSlider').step = S.schritt;
+  S.u = runde(S.u); $('uSlider').value = S.u;
+  alles();
+}
+function setzeR(){
+  let v = parseFloat($('rWert').value);
+  if (!isFinite(v) || v <= 0) { $('rWert').value = S.rWert; return; }
+  v = Math.min(999.99, v); S.rWert = v; S.rPraefix = $('rPraefix').value;
+  if (S.modus === 'reihe') neueReiheWennNoetig();
+  alles();
+}
+function schalter(){ S.zu = !S.zu; if (S.modus === 'reihe' && S.zu) messwertAufnehmen(); alles(); }
+function setzeModus(m){
+  S.modus = m; stopReihe();
+  document.querySelectorAll('[data-modus]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.modus === m)));
+  $('messKarte').hidden = m !== 'reihe';
+  if (m === 'reihe') { aktuelleReihe(); if (S.zu) messwertAufnehmen(); }
+  alles();
+}
+
+function maleSteuerung(){
+  const t = T();
+  $('uWert').textContent = fmtU(S.u);
+  $('uSlider').setAttribute('aria-valuetext', fmtU(S.u));
+  $('schalterBtn').textContent = S.zu ? t.schalterAuf : t.schalterZu;
+  $('schalterBtn').setAttribute('aria-pressed', String(S.zu));
+  const st = $('schalterStatus'); st.innerHTML = `${t.status}: <b>${S.zu ? t.geschlossen : t.offen}</b>`; st.classList.toggle('zu', S.zu);
+  $('modusText').textContent = S.modus === 'reihe' ? t.modusReihe : t.modusSofort;
+  // Instrumente
+  const i = I(), ur = UR();
+  $('anzU').textContent = fmtEinheit(ur, 'V'); $('anzI').textContent = fmtEinheit(i, 'A');
+  $('anzUBox').classList.toggle('aus', !S.zu); $('anzIBox').classList.toggle('aus', !S.zu);
+  // Formel
+  const f = $('formel'), h = $('hinweisOffen');
+  if (!S.zu){
+    f.innerHTML = `<i>I</i> = 0 A &nbsp;·&nbsp; <i>U</i> = 0 V`;
+    h.textContent = t.hinweisOffen; h.hidden = false;
+  } else {
+    const rText = fmtR(R());
+    const rOhm = S.rPraefix ? ` = ${fmtU(S.u)} / ${fmtROhm(R())}` : '';
+    const iPlain = (i >= 1e-6 && i < 1000) ? ` = ${sig(i, 3)}\u00a0A` : '';
+    const iPref = (i === 0 || praefixFuer(i).p === '') ? '' : ` = ${fmtEinheit(i, 'A')}`;
+    f.innerHTML = `<i>I</i> = <i>U</i> / <i>R</i> = ${fmtU(S.u)} / ${rText}${rOhm}${iPlain}${iPref}`;
+    if (S.u === 0){ h.textContent = t.hinweisNull; h.hidden = false; } else h.hidden = true;
+  }
+}
+
+/* ---------- Messreihe ---------- */
+function aktuelleReihe(){
+  if (!S.reihen.length || Math.abs(S.reihen[S.reihen.length - 1].r - R()) > 1e-12 && S.reihen[S.reihen.length - 1].punkte.size){
+    S.reihen.push({r:R(), punkte:new Map()});
+    if (S.reihen.length > 3) S.reihen.shift();
+  } else S.reihen[S.reihen.length - 1].r = R();
+  return S.reihen[S.reihen.length - 1];
+}
+function neueReiheWennNoetig(){ aktuelleReihe(); }
+function messwertAufnehmen(){
+  if (!S.zu) return;
+  const reihe = aktuelleReihe();
+  const key = S.u.toFixed(4);
+  reihe.punkte.set(key, {u:S.u, i:I()});
+  S.letzterKey = key;
+}
+function startReihe(){
+  if (!S.zu){ zeigeHinweisReihe(T().schalterOffenWarn); return; }
+  if (S.laeuft){ stopReihe(); return; }
+  $('hinweisReihe').hidden = true;
+  S.laeuft = true;
+  setzeU(0);
+  tick();
+  alles();
+}
+function tick(){
+  S.timer = setTimeout(() => {
+    if (!S.laeuft) return;
+    if (S.u + S.schritt > S.umax + 1e-9){ stopReihe(); alles(); return; }
+    setzeU(S.u + S.schritt);
+    tick();
+  }, parseInt($('tempo').value, 10));
+}
+function stopReihe(){ S.laeuft = false; if (S.timer){ clearTimeout(S.timer); S.timer = null; } }
+function schrittReihe(){
+  stopReihe();
+  if (!S.zu){ zeigeHinweisReihe(T().schalterOffenWarn); return; }
+  $('hinweisReihe').hidden = true;
+  setzeU(S.u + S.schritt > S.umax + 1e-9 ? 0 : S.u + S.schritt);
+}
+function neueReihe(){ stopReihe(); if (S.reihen.length) S.reihen[S.reihen.length - 1].punkte.clear(); S.letzterKey = null; S.herlOffen = false; alles(); }
+function alleLoeschen(){ stopReihe(); S.reihen = []; S.letzterKey = null; S.herlOffen = false; aktuelleReihe(); alles(); }
+function zeigeHinweisReihe(txt){ const h = $('hinweisReihe'); h.textContent = txt; h.hidden = false; }
+async function kopieren(){
+  const reihe = S.reihen[S.reihen.length - 1]; if (!reihe || !reihe.punkte.size) return;
+  const t = T();
+  const zeilen = [`U (V)\tI (A)\tR (Ω)`];
+  for (const p of sortiert(reihe)) zeilen.push(`${nf(p.u, 4)}\t${nf(p.i, 9)}\t${p.i > 0 ? nf(p.u / p.i, 6) : ''}`);
+  try { await navigator.clipboard.writeText(zeilen.join('\n')); $('kopierBtn').textContent = t.kopiert; setTimeout(() => { $('kopierBtn').textContent = t.kopieren; }, 1500); } catch (e) {}
+}
+const sortiert = reihe => [...reihe.punkte.values()].sort((a, b) => a.u - b.u);
+
+function maleTabelle(){
+  const t = T();
+  const reihe = S.reihen[S.reihen.length - 1];
+  const tb = $('tbody'); tb.innerHTML = '';
+  const pts = reihe ? sortiert(reihe) : [];
+  $('tabLeer').hidden = pts.length > 0;
+  $('tabLeer').textContent = t.messreiheLeer;
+  $('tabCaption').textContent = reihe ? `${t.caption} ${fmtR(reihe.r)}` : '';
+  const iMax = pts.reduce((m, p) => Math.max(m, p.i), 0);
+  const {f, p} = praefixFuer(iMax || 1);
+  const iMaxU = iMax / f; const dez = iMax > 0 ? Math.min(3, Math.max(0, 2 - Math.floor(Math.log10(iMaxU)))) : 0;
+  const rP = praefixFuer(reihe ? reihe.r : 1);
+  $('thI').innerHTML = `<i>I</i> in ${p}A`; $('thR').innerHTML = `<i>U</i> / <i>I</i> in ${rP.p}Ω`;
+  pts.forEach((pt, k) => {
+    const tr = document.createElement('tr');
+    const neu = S.letzterKey !== null && pt.u.toFixed(4) === S.letzterKey;
+    const rq = pt.i > 0 ? nf(pt.u / pt.i / rP.f, 3) : '—';
+    tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.i / f, dez, dez)}</td><td>${rq}</td>`;
+    tb.appendChild(tr);
+  });
+  if (S.letzterKey !== null){ const z = tb.querySelector('td.neu'); if (z && z.scrollIntoView) z.scrollIntoView({block:'nearest'}); }
+}
+
+/* Herleitung des Ohmschen Gesetzes aus der aktuellen Messreihe (per Knopfdruck, schrittweise) */
+function herlDaten(){
+  const reihe = S.reihen[S.reihen.length - 1]; if (!reihe) return null;
+  const nz = sortiert(reihe).filter(p => p.u > 0 && p.i > 0);
+  if (nz.length < 2) return null;
+  const p1 = nz[0], last = nz[nz.length - 1];
+  const p2 = nz.find(p => p !== p1 && Math.abs(p.u - 2 * p1.u) < 1e-9) || last;
+  const quot = nz.length <= 4 ? nz : [nz[0], nz[1], nz[Math.floor(nz.length / 2)], last];
+  return {reihe, nz, p1, p2, k:p2.u / p1.u, k2:p2.i / p1.i, last, m:last.i / last.u, r:reihe.r, quot};
+}
+function herlToggle(){
+  if (S.herlOffen){ S.herlOffen = false; }
+  else if (herlDaten()){ S.herlOffen = true; S.herlStufe = 1; }
+  alles();
+  if (S.herlOffen){ const p = $('herlPanel'); if (p.scrollIntoView) p.scrollIntoView({block:'nearest', behavior:REDUZIERT ? 'auto' : 'smooth'}); }
+}
+function herlWeiter(alle){
+  S.herlStufe = alle ? 6 : Math.min(6, S.herlStufe + 1);
+  alles();
+  const letzte = $('herlPanel').lastElementChild; if (letzte && letzte.scrollIntoView) letzte.scrollIntoView({block:'nearest', behavior:REDUZIERT ? 'auto' : 'smooth'});
+}
+function maleHerleitung(){
+  const t = T(), d = herlDaten();
+  if (!d) S.herlOffen = false;
+  const btn = $('herlBtn');
+  btn.disabled = !d;
+  btn.setAttribute('aria-expanded', String(S.herlOffen));
+  $('herlBtnText').textContent = S.herlOffen ? t.herlZu : t.herlBtn;
+  $('herlHinweis').textContent = d ? '' : t.herlHinweis;
+  $('herlWeiter').textContent = t.herlWeiter; $('herlAlle').textContent = t.herlAlle;
+  $('herlWeiter').hidden = $('herlAlle').hidden = !(S.herlOffen && S.herlStufe < 6);
+  const panel = $('herlPanel');
+  panel.hidden = !S.herlOffen;
+  if (!S.herlOffen){ panel.innerHTML = ''; return; }
+  const schritte = t.herl(d).slice(0, S.herlStufe);
+  panel.innerHTML = schritte.map((s, k) => `
+    <section class="hschritt${k === 5 ? ' fazit' : ''}" aria-labelledby="hs${k}">
+      <span class="nr" aria-hidden="true">${k + 1}</span>
+      <div><h3 id="hs${k}">${s.t}</h3><p>${s.p}</p><div class="formeln">${s.f.map(f => `<p class="formel">${f}</p>`).join('')}</div></div>
+    </section>`).join('');
+}
+
+/* Kennlinie I = f(U): eine Achse je Größe, feste Reihenfarben (Reihe 1 blau, 2 orange, 3 grün),
+   dünne Linien, Marken ≥ 8 px mit Kartenring, Tooltip je Punkt, Legende ab zwei Reihen. */
+const FARBEN = ['var(--elek)', 'var(--konv)', 'var(--s3)'];
+function nett(x){ // nächste „schöne“ Zahl ≥ x
+  if (x <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(x))); const m = x / e;
+  const s = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10;
+  return s * e;
+}
+function tickSchritt(max, n){ return nett(max / n); }
+function maleDiagramm(){
+  const t = T();
+  const svg = $('diagSvg'); const ns = 'http://www.w3.org/2000/svg';
+  while (svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+  const W = 460, H = 290, ml = 62, mr = 18, mt = 26, mb = 44;
+  const alleReihen = S.reihen.filter(r => r.punkte.size);
+  // Während der Herleitung nur die aktuelle Reihe (das Steigungsdreieck braucht ihre Skala)
+  const reihen = (S.herlOffen && alleReihen.length > 1) ? alleReihen.slice(-1) : alleReihen;
+  const umax = S.umax;
+  let iMax = 0; for (const r of reihen) for (const p of r.punkte.values()) iMax = Math.max(iMax, p.i);
+  if (iMax === 0) iMax = umax / R();
+  const {f, p} = praefixFuer(iMax);
+  const yTick = tickSchritt(iMax / f, 5); const yMax = Math.max(yTick, Math.ceil(iMax / f / yTick) * yTick);
+  const xTick = tickSchritt(umax, 6); const xMax = umax;
+  const X = u => ml + (u / xMax) * (W - ml - mr);
+  const Y = i => H - mb - (i / f / yMax) * (H - mt - mb);
+  const el = (n, a, txt) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) e.textContent = txt; svg.appendChild(e); return e; };
+  // Gitter + Ticks
+  for (let v = 0; v <= yMax + 1e-9; v += yTick){
+    const y = Y(v * f);
+    el('line', {class:'netz', x1:ml, x2:W - mr, y1:y, y2:y});
+    el('text', {class:'tick', x:ml - 8, y:y + 4, 'text-anchor':'end'}, nf(v, 3));
+  }
+  for (let v = 0; v <= xMax + 1e-9; v += xTick){
+    const x = X(v);
+    el('line', {class:'netz', x1:x, x2:x, y1:mt, y2:H - mb});
+    el('text', {class:'tick', x:x, y:H - mb + 16, 'text-anchor':'middle'}, nf(v, 3));
+  }
+  el('line', {class:'ach', x1:ml, x2:W - mr, y1:H - mb, y2:H - mb});
+  el('line', {class:'ach', x1:ml, x2:ml, y1:mt, y2:H - mb});
+  const xn = el('text', {class:'achsname', x:W - mr, y:H - 6, 'text-anchor':'end'}); xn.innerHTML = `<tspan font-style="italic" font-family="Georgia,serif">U</tspan> in V`;
+  const yn = el('text', {class:'achsname', x:ml - 8, y:12, 'text-anchor':'end'}); yn.innerHTML = `<tspan font-style="italic" font-family="Georgia,serif">I</tspan> in ${p}A`;
+  $('diagTitel').textContent = t.diagramm;
+  // Reihen
+  const tip = $('tooltip'); const belegt = [];
+  reihen.forEach((r, k) => {
+    const farbe = FARBEN[S.reihen.indexOf(r)] || FARBEN[k];
+    const pts = sortiert(r);
+    if (pts.length > 1) el('polyline', {class:'linie', stroke:farbe, points:pts.map(q => `${X(q.u).toFixed(1)},${Y(q.i).toFixed(1)}`).join(' ')});
+    pts.forEach(q => {
+      el('circle', {class:'marke', cx:X(q.u), cy:Y(q.i), r:4.2, fill:farbe});
+      const h = el('circle', {class:'treffer', cx:X(q.u), cy:Y(q.i), r:12});
+      const zeig = () => {
+        tip.innerHTML = `<i>U</i> = ${fmtU(q.u)} · <i>I</i> = ${fmtEinheit(q.i, 'A')}<br><i>R</i> = ${fmtR(r.r)}`;
+        const bb = svg.getBoundingClientRect();
+        tip.style.left = (X(q.u) / W * bb.width) + 'px'; tip.style.top = (Y(q.i) / H * bb.height) + 'px';
+        tip.classList.add('an');
+      };
+      h.addEventListener('pointerenter', zeig); h.addEventListener('pointermove', zeig);
+      h.addEventListener('pointerleave', () => tip.classList.remove('an'));
+    });
+    if (pts.length){
+      const last = pts[pts.length - 1];
+      // Direktbeschriftung am Linienende; bei Überlappung mit einer früheren nach unten ausweichen
+      let y = Math.max(Y(last.i) - 8, mt + 10);
+      for (const b of belegt) if (Math.abs(y - b) < 15) y = b + 15;
+      belegt.push(y);
+      el('text', {class:'direkt', x:Math.min(X(last.u) + 8, W - mr - 74), y}, `R = ${fmtR(r.r)}`);
+    }
+  });
+  // Steigungsdreieck (Herleitung ab Schritt 4): Ursprung → letzter Messpunkt
+  const d = (S.herlOffen && S.herlStufe >= 4) ? herlDaten() : null;
+  if (d){
+    const x0 = X(0), y0 = Y(0), x1 = X(d.last.u), y1 = Y(d.last.i);
+    el('path', {class:'delta', d:`M${x0},${y0} H${x1} V${y1}`});
+    el('text', {class:'deltatext', x:(x0 + x1) / 2, y:y0 - 7, 'text-anchor':'middle'}, `${t.dU} = ${fmtU(d.last.u)}`);
+    el('text', {class:'deltatext', x:x1 - 7, y:(y0 + y1) / 2 + 4, 'text-anchor':'end'}, `${t.dI} = ${fmtEinheit(d.last.i, 'A')}`);
+  }
+  // Legende ab zwei Reihen (Farbe + Text, nie Farbe allein)
+  const leg = $('diagLegende'); leg.innerHTML = '';
+  if (S.herlOffen && alleReihen.length > 1){ const s = document.createElement('span'); s.textContent = t.herlNurAktuell; leg.appendChild(s); }
+  if (reihen.length >= 2) reihen.forEach(r => {
+    const farbe = FARBEN[S.reihen.indexOf(r)];
+    const s = document.createElement('span'); s.innerHTML = `<i style="background:${farbe}"></i>${t.reihe} ${S.reihen.indexOf(r) + 1}: R = ${fmtR(r.r)}`; leg.appendChild(s);
+  });
+}
+
+/* ---------- alles neu zeichnen ---------- */
+function alles(){
+  maleSchaltbild();
+  maleSteuerung();
+  if (S.modus === 'reihe'){ maleTabelle(); maleHerleitung(); maleDiagramm(); }
+  const t = T();
+  $('startBtn').innerHTML = (S.laeuft ? '⏸ ' : '▶ ') + (S.laeuft ? t.pause : t.start);
+}
+
+/* ---------- Thema, Vollbild, Overlays ---------- */
+function themaWechseln(){
+  const html = document.documentElement;
+  const dunkel = html.dataset.theme ? html.dataset.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  html.dataset.theme = dunkel ? 'light' : 'dark';
+  try { localStorage.setItem('ohm-thema', html.dataset.theme); } catch (e) {}
+}
+function vollbild(){
+  const d = document;
+  if (d.fullscreenElement){ if (d.exitFullscreen) d.exitFullscreen(); }
+  else if (d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(() => {});
+}
+function qrAuf(){ $('qrGross').hidden = false; $('qrZu').focus(); }
+function qrZu(){ $('qrGross').hidden = true; }
+function hilfeAuf(){ $('hilfe').hidden = false; $('hilfeZu').focus(); }
+function hilfeZu(){ $('hilfe').hidden = true; }
+
+/* ---------- Start ---------- */
+(function init(){
+  $('qrPfad1').setAttribute('d', QR_PFAD); $('qrPfad2').setAttribute('d', QR_PFAD);
+  const q = new URLSearchParams(location.search);
+  let l = q.get('lang');
+  if (!l){ try { l = localStorage.getItem('ohm-lang'); } catch (e) {} }
+  if (!l){ const nav = (navigator.language || 'de').slice(0, 2).toLowerCase(); l = TEXTE[nav] ? nav : 'de'; }
+  try { const th = localStorage.getItem('ohm-thema'); if (th === 'dark' || th === 'light') document.documentElement.dataset.theme = th; } catch (e) {}
+  // Startwerte aus der Adresse: ?umax=24&step=2&r=4700&u=6
+  const num = (k, d) => { const v = parseFloat(q.get(k)); return isFinite(v) && v > 0 ? v : d; };
+  S.umax = Math.min(1000, num('umax', 12)); $('uMax').value = S.umax; $('uSlider').max = S.umax;
+  const st = num('step', 1); const opt = [...$('uSchritt').options].find(o => parseFloat(o.value) === st); if (opt) { opt.selected = true; S.schritt = st; }
+  $('uSlider').step = S.schritt;
+  const r = q.get('r'); if (r){ const v = parseFloat(r); if (isFinite(v) && v > 0){ const {f, p} = praefixFuer(v); if (PRAEFIX[p] !== undefined){ S.rWert = +(v / f).toPrecision(6); S.rPraefix = p; $('rWert').value = S.rWert; $('rPraefix').value = p; } } }
+  if (q.get('u') !== null) S.u = runde(num('u', 0));
+  if (q.get('zu') === '1') S.zu = true;
+  aktuelleReihe();
+
+  // Ereignisse
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setzeSprache(b.dataset.lang)));
+  document.querySelectorAll('[data-modus]').forEach(b => b.addEventListener('click', () => setzeModus(b.dataset.modus)));
+  $('uSlider').addEventListener('input', slider);
+  $('uMinus').addEventListener('click', () => schrittU(-1));
+  $('uPlus').addEventListener('click', () => schrittU(1));
+  $('uMax').addEventListener('change', setzeUmax);
+  $('uSchritt').addEventListener('change', setzeSchritt);
+  $('rWert').addEventListener('change', setzeR);
+  $('rWert').addEventListener('input', () => { const v = parseFloat($('rWert').value); if (isFinite(v) && v > 0 && v <= 999.99){ S.rWert = v; if (S.modus === 'reihe') neueReiheWennNoetig(); alles(); } });
+  $('rPraefix').addEventListener('change', setzeR);
+  $('schalterBtn').addEventListener('click', schalter);
+  const treffer = document.querySelector('.schaltertreffer');
+  treffer.addEventListener('click', schalter);
+  treffer.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); schalter(); } });
+  $('quelleG').addEventListener('click', () => $('uSlider').focus());
+  $('widerstandG').addEventListener('click', () => $('rWert').focus());
+  $('zeigeE').addEventListener('change', () => { S.zeigeE = $('zeigeE').checked; alles(); });
+  $('zeigeK').addEventListener('change', () => { S.zeigeK = $('zeigeK').checked; alles(); });
+  $('startBtn').addEventListener('click', startReihe);
+  $('schrittBtn').addEventListener('click', schrittReihe);
+  $('neuBtn').addEventListener('click', neueReihe);
+  $('alleBtn').addEventListener('click', alleLoeschen);
+  $('kopierBtn').addEventListener('click', kopieren);
+  $('herlBtn').addEventListener('click', herlToggle);
+  $('herlWeiter').addEventListener('click', () => herlWeiter(false));
+  $('herlAlle').addEventListener('click', () => herlWeiter(true));
+  $('themaBtn').addEventListener('click', themaWechseln);
+  $('vollBtn').addEventListener('click', vollbild);
+  $('hilfeBtn').addEventListener('click', hilfeAuf);
+  $('hilfeZu').addEventListener('click', hilfeZu);
+  $('qrKlein').addEventListener('click', qrAuf);
+  $('qrMobil').addEventListener('click', qrAuf);
+  $('qrZu').addEventListener('click', qrZu);
+  $('qrGross').addEventListener('click', ev => { if (ev.target === $('qrGross')) qrZu(); });
+  $('hilfe').addEventListener('click', ev => { if (ev.target === $('hilfe')) hilfeZu(); });
+  window.addEventListener('resize', () => { if (S.modus === 'reihe') maleDiagramm(); });
+
+  document.addEventListener('keydown', ev => {
+    const tag = (ev.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (!$('qrGross').hidden){ if (ev.key === 'Escape' || ev.key === 'q' || ev.key === 'Q'){ ev.preventDefault(); qrZu(); } return; }
+    if (!$('hilfe').hidden){ if (ev.key === 'Escape' || ev.key === 'h' || ev.key === 'H' || ev.key === '?'){ ev.preventDefault(); hilfeZu(); } return; }
+    const k = ev.key;
+    if (k === 's' || k === 'S'){ ev.preventDefault(); schalter(); }
+    else if (k === '+' || k === 'ArrowUp' || k === 'ArrowRight'){ ev.preventDefault(); schrittU(1); }
+    else if (k === '-' || k === 'ArrowDown' || k === 'ArrowLeft'){ ev.preventDefault(); schrittU(-1); }
+    else if (k === ' '){ if (S.modus === 'reihe'){ ev.preventDefault(); startReihe(); } }
+    else if (k === 'e' || k === 'E'){ $('zeigeE').checked = !$('zeigeE').checked; S.zeigeE = $('zeigeE').checked; alles(); }
+    else if (k === 't' || k === 'T'){ $('zeigeK').checked = !$('zeigeK').checked; S.zeigeK = $('zeigeK').checked; alles(); }
+    else if (k === 'm' || k === 'M'){ setzeModus(S.modus === 'reihe' ? 'sofort' : 'reihe'); }
+    else if (k === 'f' || k === 'F'){ ev.preventDefault(); vollbild(); }
+    else if (k === 'q' || k === 'Q'){ ev.preventDefault(); qrAuf(); }
+    else if (k === 'h' || k === 'H' || k === '?'){ ev.preventDefault(); hilfeAuf(); }
+  });
+
+  setzeSprache(l);
+  if (q.get('modus') === 'reihe') setzeModus('reihe');
+})();
+</script>
+</body>
+</html>
