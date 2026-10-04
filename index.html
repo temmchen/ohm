@@ -94,11 +94,11 @@ input[type="number"]{
 .draht{fill:none; stroke:var(--ink); stroke-width:3; stroke-linecap:round; stroke-linejoin:round}
 .knoten{fill:var(--ink)}
 .bauteil{fill:var(--card); stroke:var(--ink); stroke-width:3}
-.symbol{fill:var(--ink); font-size:22px; font-weight:700; text-anchor:middle; dominant-baseline:central; font-family:Georgia,"Times New Roman",serif}
+.symbol{fill:var(--ink); font-size:22px; font-weight:700; dominant-baseline:central; font-family:Georgia,"Times New Roman",serif}
 .sym-i{font-style:italic}
-.etikett{fill:var(--ink2); font-size:16px; text-anchor:middle}
+.etikett{fill:var(--ink2); font-size:16px}
 .etikett.i{font-style:italic; font-family:Georgia,"Times New Roman",serif; font-size:19px; fill:var(--ink)}
-.wert{fill:var(--brand); font-size:17px; font-weight:700; text-anchor:middle; font-variant-numeric:tabular-nums}
+.wert{fill:var(--brand); font-size:17px; font-weight:700; font-variant-numeric:tabular-nums}
 .ablesung{fill:var(--lcd); font-size:18px; font-weight:700; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 .ablesung-bg{fill:var(--lcdbg); stroke:var(--line)}
 .elektron{fill:var(--elek)}
@@ -275,7 +275,7 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
   <!-- Schaltbild -->
   <section class="karte k-schalt">
     <h2 data-i18n="schaltung">Schaltung</h2>
-    <svg class="schaltbild" id="schaltbild" viewBox="-30 0 630 322" role="img" aria-labelledby="sbTitel">
+    <svg class="schaltbild" id="schaltbild" viewBox="-42 0 642 322" role="img" aria-labelledby="sbTitel">
       <title id="sbTitel">Stromkreis: Quelle, Schalter, Amperemeter, Widerstand, Voltmeter</title>
       <defs>
         <marker id="pfK" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1L11 6L1 11z" fill="var(--konv)"/></marker>
@@ -308,11 +308,11 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
       <!-- Spannungsquelle -->
       <g id="quelleG" tabindex="0" role="button" aria-label="Spannungsquelle">
         <circle class="bauteil" cx="90" cy="175" r="28"/>
-        <path class="quelle-pfeil" d="M72,195 L110,153 M98,153 L110,153 L110,165"/>
-        <text class="etikett i" x="56" y="168">U<tspan dy="5" font-size="13" font-style="normal">0</tspan></text>
-        <text class="wert" id="svgU0" x="56" y="192">12 V</text>
-        <text class="etikett" x="112" y="145" style="font-size:20px;font-weight:700;fill:var(--ink)">+</text>
-        <text class="etikett" x="112" y="212" style="font-size:22px;font-weight:700;fill:var(--ink)">−</text>
+        <path class="quelle-pfeil" d="M74,191 L106,159 M95,159 L106,159 L106,170"/>
+        <text class="etikett i" x="50" y="168" text-anchor="end">U<tspan dy="5" font-size="13" font-style="normal">0</tspan></text>
+        <text class="wert" id="svgU0" x="50" y="192" text-anchor="end">12 V</text>
+        <text class="etikett" x="120" y="141" text-anchor="middle" style="font-size:20px;font-weight:700;fill:var(--ink)">+</text>
+        <text class="etikett" x="120" y="216" text-anchor="middle" style="font-size:22px;font-weight:700;fill:var(--ink)">−</text>
       </g>
       <circle class="knoten" cx="90" cy="147" r="4"/>
       <circle class="knoten" cx="90" cy="203" r="4"/>
@@ -323,13 +323,13 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
         <line class="blatt offen" id="blatt" x1="150" y1="60" x2="194" y2="60"/>
         <circle class="knoten" cx="150" cy="60" r="4"/>
         <circle class="knoten" cx="195" cy="60" r="4"/>
-        <text class="etikett i" x="172" y="98">S</text>
+        <text class="etikett i" x="172" y="98" text-anchor="middle">S</text>
       </g>
 
       <!-- Amperemeter -->
       <g>
         <circle class="bauteil" cx="300" cy="60" r="22"/>
-        <text class="symbol" x="300" y="60">A</text>
+        <text class="symbol" x="300" y="60" text-anchor="middle">A</text>
         <rect class="ablesung-bg" x="243" y="4" width="114" height="30" rx="7"/>
         <text class="ablesung" id="svgI" x="300" y="25" text-anchor="middle">0 A</text>
       </g>
@@ -346,7 +346,7 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
       <!-- Voltmeter -->
       <g>
         <circle class="bauteil" cx="520" cy="175" r="22"/>
-        <text class="symbol" x="520" y="175">V</text>
+        <text class="symbol" x="520" y="175" text-anchor="middle">V</text>
         <rect class="ablesung-bg" x="463" y="246" width="114" height="30" rx="7"/>
         <text class="ablesung" id="svgUR" x="520" y="267" text-anchor="middle">0 V</text>
       </g>
