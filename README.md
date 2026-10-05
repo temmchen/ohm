@@ -25,7 +25,7 @@ Interaktive HTML-Simulation für den Unterricht (DE / FR / EN, hell / dunkel): e
 | | Verhalten |
 |---|---|
 | **Sofort** | Jede Änderung von U₀, R oder S wird unmittelbar in Schaltbild, Instrumenten und Rechnung angezeigt. |
-| **Messreihe** | Jede Änderung von U₀ trägt automatisch einen Messwert (U, I, U/I) in die Tabelle ein. **Start** fährt U₀ selbsttätig von 0 bis zum Maximum (Tempo langsam / normal / schnell), **Schritt** geht einen Wert weiter. Rechts entsteht synchron die **Kennlinie I = f(U)**. Wird R geändert, beginnt eine neue Reihe; bis zu drei Reihen bleiben im Diagramm (je flacher, desto größer R). **Kopieren** legt die Tabelle als Tab-getrennten Text in die Zwischenablage (Excel / Numbers). |
+| **Messreihe** | Jede Änderung von U₀ trägt automatisch einen Messwert (U, I, U/I) in die Tabelle ein. **Start** fährt U₀ selbsttätig von 0 bis zum Maximum (Tempo langsam / normal / schnell), **Schritt** geht einen Wert weiter. Rechts entsteht synchron die **Kennlinie I = f(U)**. Ein Klick auf eine Tabellenzeile oder einen Messpunkt stellt die Schaltung (Quelle, Instrumente, Teilchen) auf genau diesen Messwert. Wird R geändert, beginnt eine neue Reihe; bis zu drei Reihen bleiben im Diagramm (je flacher, desto größer R). **Kopieren** legt die Tabelle als Tab-getrennten Text in die Zwischenablage (Excel / Numbers). |
 
 ### Herleitung des Ohmschen Gesetzes (per Knopfdruck)
 

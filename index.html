@@ -169,6 +169,9 @@ th{position:sticky; top:0; background:var(--card2); color:var(--ink2); font-weig
 th:first-child,td:first-child{text-align:center; color:var(--muted); min-width:44px}
 tr:last-child td{border-bottom:0}
 td.neu{background:var(--card2); font-weight:700; box-shadow:inset 3px 0 0 var(--brand)}
+tbody tr.klick{cursor:pointer}
+tbody tr.klick:hover td{background:var(--btnh)}
+.diag .treffer{cursor:pointer}
 .leer{color:var(--muted); font-size:14px; padding:12px 14px; margin:0}
 .diag{position:relative}
 .diag svg{width:100%; height:auto; display:block}
@@ -526,7 +529,8 @@ const TEXTE = {
     modus:'Modus', sofort:'Sofort', messreihe:'Messreihe',
     modusSofort:'Jede Änderung wird sofort angezeigt.', modusReihe:'Jede Änderung von U₀ trägt einen Messwert in die Tabelle ein.',
     elektronen:'Elektronenfluss (− → +)', technisch:'Technische Stromrichtung (+ → −)',
-    skala:'Animation: Tempo der Teilchen ∝ I · volles Tempo bei', skalaAus:'Animation: kein Strom – die Teilchen ruhen.',
+    skala:(i, pct, ref) => `Animation: Teilchentempo ∝ I · jetzt ${i} = ${pct} % des vollen Tempos (bei ${ref})`, skalaAus:'Animation: kein Strom – die Teilchen ruhen.',
+    zeileTipp:'Anklicken: Die Schaltung zeigt diesen Messwert.',
     hinweisOffen:'Schalter offen: kein Strom (I = 0). Das Voltmeter am Widerstand zeigt 0 V – die Spannung U₀ liegt jetzt am offenen Schalter.',
     hinweisNull:'U₀ = 0 V: Ohne Spannung fließt kein Strom.',
     quelleArt:'Quelle', regelbar:'regelbar', konstant:'konstant', konstantHinweis:'feste Spannung – der Widerstand wird verändert',
@@ -581,7 +585,8 @@ const TEXTE = {
     modus:'Mode', sofort:'Instantané', messreihe:'Série de mesures',
     modusSofort:'Chaque modification s’affiche immédiatement.', modusReihe:'Chaque modification de U₀ ajoute une mesure au tableau.',
     elektronen:'Flux d’électrons (− → +)', technisch:'Sens conventionnel du courant (+ → −)',
-    skala:'Animation : vitesse des particules ∝ I · vitesse maximale pour', skalaAus:'Animation : pas de courant – les particules sont au repos.',
+    skala:(i, pct, ref) => `Animation : vitesse des particules ∝ I · ${i} = ${pct} % de la vitesse maximale (pour ${ref})`, skalaAus:'Animation : pas de courant – les particules sont au repos.',
+    zeileTipp:'Toucher : le circuit prend cette valeur de mesure.',
     hinweisOffen:'Interrupteur ouvert : pas de courant (I = 0). Le voltmètre aux bornes de la résistance indique 0 V – la tension U₀ se trouve maintenant aux bornes de l’interrupteur ouvert.',
     hinweisNull:'U₀ = 0 V : sans tension, pas de courant.',
     quelleArt:'Source', regelbar:'réglable', konstant:'constante', konstantHinweis:'tension fixe – on fait varier la résistance',
@@ -636,7 +641,8 @@ const TEXTE = {
     modus:'Mode', sofort:'Instant', messreihe:'Measurement series',
     modusSofort:'Every change is shown immediately.', modusReihe:'Every change of U₀ records a reading in the table.',
     elektronen:'Electron flow (− → +)', technisch:'Conventional current (+ → −)',
-    skala:'Animation: particle speed ∝ I · full speed at', skalaAus:'Animation: no current – the particles are at rest.',
+    skala:(i, pct, ref) => `Animation: particle speed ∝ I · now ${i} = ${pct} % of full speed (at ${ref})`, skalaAus:'Animation: no current – the particles are at rest.',
+    zeileTipp:'Click: the circuit shows this reading.',
     hinweisOffen:'Switch open: no current (I = 0). The voltmeter across the resistor reads 0 V – the voltage U₀ now appears across the open switch.',
     hinweisNull:'U₀ = 0 V: without voltage there is no current.',
     quelleArt:'Source', regelbar:'adjustable', konstant:'constant', konstantHinweis:'fixed voltage – the resistance is varied',
@@ -848,7 +854,7 @@ function maleSchaltbild(){
   $('bogenK').style.display = (S.zeigeK && stromDa) ? '' : 'none';
   $('bogenE').style.display = (S.zeigeE && stromDa) ? '' : 'none';
   setzeTeilchen();
-  $('skala').textContent = stromDa ? `${t.skala} ${fmtEinheit(iRef(), 'A')}` : t.skalaAus;
+  $('skala').textContent = stromDa ? t.skala(fmtEinheit(I(), 'A'), Math.round(Math.min(160, 100 * I() / iRef())), fmtEinheit(iRef(), 'A')) : t.skalaAus;
   starteAnimation();
 }
 
@@ -995,6 +1001,15 @@ async function kopieren(){
   try { await navigator.clipboard.writeText(zeilen.join('\n')); $('kopierBtn').textContent = t.kopiert; setTimeout(() => { $('kopierBtn').textContent = t.kopieren; }, 1500); } catch (e) {}
 }
 const sortiert = reihe => [...reihe.punkte.values()].sort((a, b) => xVon(a) - xVon(b));
+function zeigeMesswert(pt){   // Tabellenzeile oder Messpunkt angeklickt → Schaltung nimmt genau diesen Zustand an
+  if (!pt) return;
+  stopReihe();
+  if (KONST()){
+    const {f, p} = praefixFuer(pt.r);
+    S.rWert = +(pt.r / f).toPrecision(6); S.rPraefix = p; $('rWert').value = S.rWert; $('rPraefix').value = p;
+    S.letzterKey = pt.key; alles();
+  } else setzeU(pt.u);
+}
 const festText = r => KONST() ? `U = ${fmtU(r.fest)}` : `R = ${fmtR(r.fest)}`;
 
 function maleTabelle(){
@@ -1010,6 +1025,7 @@ function maleTabelle(){
     $('thU').innerHTML = `<i>R</i>`; $('thI').innerHTML = `<i>I</i>`; $('thR').innerHTML = `<i>R</i> · <i>I</i> in V`;
     pts.forEach((pt, k) => {
       const tr = document.createElement('tr'); const neu = pt.key === S.letzterKey;
+      tr.dataset.key = pt.key; tr.className = 'klick'; tr.title = t.zeileTipp;
       tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${fmtEinheit(pt.r, 'Ω', 4)}</td><td${neu ? ' class="neu"' : ''}>${fmtEinheit(pt.i, 'A')}</td><td>${nf(pt.r * pt.i, 2)}</td>`;
       tb.appendChild(tr);
     });
@@ -1023,6 +1039,7 @@ function maleTabelle(){
     pts.forEach((pt, k) => {
       const tr = document.createElement('tr');
       const neu = pt.key === S.letzterKey;
+      tr.dataset.key = pt.key; tr.className = 'klick'; tr.title = t.zeileTipp;
       const rq = pt.i > 0 ? nf(pt.u / pt.i / rP.f, 3) : '—';
       tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.i / f, dez, dez)}</td><td>${rq}</td>`;
       tb.appendChild(tr);
@@ -1144,6 +1161,7 @@ function maleDiagramm(){
         tip.classList.add('an');
       };
       h.addEventListener('pointerenter', zeig); h.addEventListener('pointermove', zeig);
+      if (r === S.reihen[S.reihen.length - 1]) h.addEventListener('click', () => zeigeMesswert(q));
       h.addEventListener('pointerleave', () => tip.classList.remove('an'));
     });
     if (pts.length){
@@ -1247,6 +1265,7 @@ function hilfeZu(){ $('hilfe').hidden = true; }
   $('neuBtn').addEventListener('click', neueReihe);
   $('alleBtn').addEventListener('click', alleLoeschen);
   $('kopierBtn').addEventListener('click', kopieren);
+  $('tbody').addEventListener('click', ev => { const tr = ev.target.closest('tr'); const reihe = S.reihen[S.reihen.length - 1]; if (tr && reihe) zeigeMesswert(reihe.punkte.get(tr.dataset.key)); });
   $('herlBtn').addEventListener('click', herlToggle);
   $('herlWeiter').addEventListener('click', () => herlWeiter(false));
   $('herlAlle').addEventListener('click', () => herlWeiter(true));
