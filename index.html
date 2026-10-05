@@ -41,6 +41,7 @@
 }
 
 *{box-sizing:border-box}
+[hidden]{display:none !important}
 html,body{margin:0}
 body{
   background:var(--page); color:var(--ink);
@@ -362,19 +363,30 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
   <div class="k-steuer">
     <section class="karte block">
       <h2 data-i18n="quelle">Spannungsquelle U₀</h2>
-      <div class="uzeile">
+      <div class="feldzeile">
+        <span class="status" data-i18n="quelleArt">Quelle</span>
+        <div class="seg" role="group">
+          <button type="button" data-quelle="regelbar" aria-pressed="true" data-i18n="regelbar">regelbar</button>
+          <button type="button" data-quelle="konstant" aria-pressed="false" data-i18n="konstant">konstant</button>
+        </div>
+      </div>
+      <div class="uzeile" id="uRegelbar">
         <button type="button" class="ikon" id="uMinus" aria-label="−">−</button>
         <input type="range" id="uSlider" min="0" max="12" step="1" value="0" aria-label="U0">
         <button type="button" class="ikon" id="uPlus" aria-label="+">+</button>
         <output id="uWert" for="uSlider" class="tn">0 V</output>
       </div>
-      <div class="feldzeile">
+      <div class="feldzeile" id="uBereich">
         <label><span data-i18n="umax">Maximum</span> <input type="number" id="uMax" min="1" max="1000" step="1" value="12" inputmode="decimal"> V</label>
         <label><span data-i18n="schritt">Schritt</span>
           <select id="uSchritt">
             <option value="0.1">0,1 V</option><option value="0.2">0,2 V</option><option value="0.5">0,5 V</option>
             <option value="1" selected>1 V</option><option value="2">2 V</option><option value="5">5 V</option><option value="10">10 V</option>
           </select></label>
+      </div>
+      <div class="feldzeile" id="uKonstant" hidden>
+        <label><i>U</i><sub>0</sub> = <input type="number" id="uFest" min="0" max="1000" step="any" value="12" inputmode="decimal"> V</label>
+        <span class="status" data-i18n="konstantHinweis"></span>
       </div>
     </section>
 
@@ -433,7 +445,7 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
       <h2 data-i18n="tabelle">Messreihe</h2>
       <button type="button" id="startBtn">▶ <span data-i18n="start">Start</span></button>
       <button type="button" id="schrittBtn">⏭ <span data-i18n="schrittBtn">Schritt</span></button>
-      <label class="status"><span data-i18n="tempo">Tempo</span>
+      <label class="status" id="tempoLabel"><span data-i18n="tempo">Tempo</span>
         <select id="tempo"><option value="1400" data-i18n="langsam">langsam</option><option value="800" selected data-i18n="normal">normal</option><option value="350" data-i18n="schnell">schnell</option></select>
       </label>
       <button type="button" id="neuBtn">↺ <span data-i18n="neu">Neue Reihe</span></button>
@@ -441,6 +453,7 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
       <button type="button" id="kopierBtn" data-i18n="kopieren">Kopieren</button>
     </div>
     <p class="hinweis" id="hinweisReihe" hidden></p>
+    <p class="status" id="messHinweis" hidden></p>
     <div class="messraster">
       <div>
         <div class="tabwrap">
@@ -458,7 +471,7 @@ kbd{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:va
           <div class="tooltip" id="tooltip"></div>
         </div>
         <p class="diaglegende" id="diagLegende"></p>
-        <p class="notiz" data-i18n="steigung"></p>
+        <p class="notiz" id="diagNotiz"></p>
       </div>
     </div>
     <div class="herl">
@@ -516,6 +529,12 @@ const TEXTE = {
     skala:'Animation: Tempo der Teilchen ∝ I · volles Tempo bei', skalaAus:'Animation: kein Strom – die Teilchen ruhen.',
     hinweisOffen:'Schalter offen: kein Strom (I = 0). Das Voltmeter am Widerstand zeigt 0 V – die Spannung U₀ liegt jetzt am offenen Schalter.',
     hinweisNull:'U₀ = 0 V: Ohne Spannung fließt kein Strom.',
+    quelleArt:'Quelle', regelbar:'regelbar', konstant:'konstant', konstantHinweis:'feste Spannung – der Widerstand wird verändert',
+    captionK:'Messwerte bei U =', modusReiheK:'Jede Änderung von R trägt einen Messwert in die Tabelle ein.',
+    messHinweisK:'Widerstand R ändern (Wert oder Einheit) – jeder Wert wird eingetragen, solange der Schalter geschlossen ist.',
+    diagrammK:'Kennlinie I = f(R) bei konstanter Spannung',
+    steigungK:'Bei konstanter Spannung ist I umgekehrt proportional zu R: Verdoppelt sich R, halbiert sich I. Das Produkt R · I bleibt gleich U.',
+    messreiheLeerK:'Noch keine Messwerte. Bei konstanter Spannung wird der Widerstand verändert: Jede Änderung von R trägt einen Messwert ein. Wird U₀ geändert, beginnt eine neue Reihe (bis zu drei bleiben im Diagramm).',
     tabelle:'Messreihe', start:'Start', pause:'Pause', schrittBtn:'Schritt', neu:'Neue Reihe', alleLoeschen:'Alle löschen', kopieren:'Kopieren', kopiert:'Kopiert ✓',
     tempo:'Tempo', langsam:'langsam', normal:'normal', schnell:'schnell',
     spalteNr:'Nr.', reihe:'Reihe', caption:'Messwerte für R =',
@@ -525,7 +544,7 @@ const TEXTE = {
     schalterOffenWarn:'Zuerst den Schalter schließen – sonst gibt es nichts zu messen.',
     qrCap:'Scannen, um die Simulation zu öffnen', qrGross:'Simulation auf dem Handy öffnen', schliessen:'Schließen',
     vollTitel:'Vollbild (F)', themaTitel:'Hell / dunkel', qrTitel:'QR-Code (Q)', hilfeTitel:'Tastatur (H)', tasten:'Tastatur',
-    hilfe:[['S','Schalter öffnen / schließen'],['+ / − oder ↑ / ↓','Spannung U₀ um einen Schritt ändern'],['Leertaste','Messreihe starten / anhalten (im Modus Messreihe)'],['E','Elektronenfluss ein / aus'],['T','Technische Stromrichtung ein / aus'],['M','Modus Sofort / Messreihe'],['F','Vollbild'],['Q','QR-Code bildschirmfüllend'],['H','Diese Hilfe']],
+    hilfe:[['S','Schalter öffnen / schließen'],['+ / − oder ↑ / ↓','Spannung U₀ um einen Schritt ändern'],['Leertaste','Messreihe starten / anhalten (im Modus Messreihe)'],['E','Elektronenfluss ein / aus'],['T','Technische Stromrichtung ein / aus'],['M','Modus Sofort / Messreihe'],['K','Quelle regelbar / konstant'],['F','Vollbild'],['Q','QR-Code bildschirmfüllend'],['H','Diese Hilfe']],
     sbTitel:'Stromkreis: Quelle, Schalter, Amperemeter, Widerstand, Voltmeter', quelleAria:'Spannungsquelle', widerstandAria:'Widerstand', schalterAria:'Schalter S',
     herlBtn:'Herleitung des Ohmschen Gesetzes', herlZu:'Herleitung ausblenden', herlWeiter:'Nächster Schritt', herlAlle:'Alle Schritte',
     herlHinweis:'Für die Herleitung zuerst mindestens drei Messwerte aufnehmen (z. B. mit „Start“).',
@@ -565,6 +584,12 @@ const TEXTE = {
     skala:'Animation : vitesse des particules ∝ I · vitesse maximale pour', skalaAus:'Animation : pas de courant – les particules sont au repos.',
     hinweisOffen:'Interrupteur ouvert : pas de courant (I = 0). Le voltmètre aux bornes de la résistance indique 0 V – la tension U₀ se trouve maintenant aux bornes de l’interrupteur ouvert.',
     hinweisNull:'U₀ = 0 V : sans tension, pas de courant.',
+    quelleArt:'Source', regelbar:'réglable', konstant:'constante', konstantHinweis:'tension fixe – on fait varier la résistance',
+    captionK:'Mesures pour U =', modusReiheK:'Chaque modification de R ajoute une mesure au tableau.',
+    messHinweisK:'Modifier la résistance R (valeur ou unité) – chaque valeur est enregistrée tant que l’interrupteur est fermé.',
+    diagrammK:'Caractéristique I = f(R) à tension constante',
+    steigungK:'À tension constante, I est inversement proportionnelle à R : si R double, I est divisée par deux. Le produit R · I reste égal à U.',
+    messreiheLeerK:'Pas encore de mesures. À tension constante, on fait varier la résistance : chaque modification de R ajoute une mesure. Si U₀ change, une nouvelle série commence (le diagramme en garde jusqu’à trois).',
     tabelle:'Série de mesures', start:'Démarrer', pause:'Pause', schrittBtn:'Pas', neu:'Nouvelle série', alleLoeschen:'Tout effacer', kopieren:'Copier', kopiert:'Copié ✓',
     tempo:'Vitesse', langsam:'lente', normal:'normale', schnell:'rapide',
     spalteNr:'N°', reihe:'Série', caption:'Mesures pour R =',
@@ -574,7 +599,7 @@ const TEXTE = {
     schalterOffenWarn:'Fermer d’abord l’interrupteur – sinon il n’y a rien à mesurer.',
     qrCap:'Scanner pour ouvrir la simulation', qrGross:'Ouvrir la simulation sur le téléphone', schliessen:'Fermer',
     vollTitel:'Plein écran (F)', themaTitel:'Clair / sombre', qrTitel:'Code QR (Q)', hilfeTitel:'Clavier (H)', tasten:'Clavier',
-    hilfe:[['S','Ouvrir / fermer l’interrupteur'],['+ / − ou ↑ / ↓','Modifier la tension U₀ d’un pas'],['Espace','Démarrer / arrêter la série (mode Série de mesures)'],['E','Flux d’électrons oui / non'],['T','Sens conventionnel oui / non'],['M','Mode Instantané / Série'],['F','Plein écran'],['Q','Code QR plein écran'],['H','Cette aide']],
+    hilfe:[['S','Ouvrir / fermer l’interrupteur'],['+ / − ou ↑ / ↓','Modifier la tension U₀ d’un pas'],['Espace','Démarrer / arrêter la série (mode Série de mesures)'],['E','Flux d’électrons oui / non'],['T','Sens conventionnel oui / non'],['M','Mode Instantané / Série'],['K','Source réglable / constante'],['F','Plein écran'],['Q','Code QR plein écran'],['H','Cette aide']],
     sbTitel:'Circuit : source, interrupteur, ampèremètre, résistance, voltmètre', quelleAria:'Source de tension', widerstandAria:'Résistance', schalterAria:'Interrupteur S',
     herlBtn:'Établir la loi d’Ohm', herlZu:'Masquer la démarche', herlWeiter:'Étape suivante', herlAlle:'Toutes les étapes',
     herlHinweis:'Pour établir la loi, enregistrer d’abord au moins trois mesures (p. ex. avec « Démarrer »).',
@@ -614,6 +639,12 @@ const TEXTE = {
     skala:'Animation: particle speed ∝ I · full speed at', skalaAus:'Animation: no current – the particles are at rest.',
     hinweisOffen:'Switch open: no current (I = 0). The voltmeter across the resistor reads 0 V – the voltage U₀ now appears across the open switch.',
     hinweisNull:'U₀ = 0 V: without voltage there is no current.',
+    quelleArt:'Source', regelbar:'adjustable', konstant:'constant', konstantHinweis:'fixed voltage – the resistance is varied',
+    captionK:'Readings at U =', modusReiheK:'Every change of R records a reading in the table.',
+    messHinweisK:'Change the resistance R (value or unit) – every value is recorded while the switch is closed.',
+    diagrammK:'Characteristic I = f(R) at constant voltage',
+    steigungK:'At constant voltage I is inversely proportional to R: if R doubles, I halves. The product R · I stays equal to U.',
+    messreiheLeerK:'No readings yet. At constant voltage the resistance is varied: every change of R records a reading. Changing U₀ starts a new series (the chart keeps up to three).',
     tabelle:'Measurement series', start:'Start', pause:'Pause', schrittBtn:'Step', neu:'New series', alleLoeschen:'Clear all', kopieren:'Copy', kopiert:'Copied ✓',
     tempo:'Speed', langsam:'slow', normal:'normal', schnell:'fast',
     spalteNr:'No.', reihe:'Series', caption:'Readings for R =',
@@ -623,7 +654,7 @@ const TEXTE = {
     schalterOffenWarn:'Close the switch first – otherwise there is nothing to measure.',
     qrCap:'Scan to open the simulation', qrGross:'Open the simulation on your phone', schliessen:'Close',
     vollTitel:'Full screen (F)', themaTitel:'Light / dark', qrTitel:'QR code (Q)', hilfeTitel:'Keyboard (H)', tasten:'Keyboard',
-    hilfe:[['S','Open / close the switch'],['+ / − or ↑ / ↓','Change the voltage U₀ by one step'],['Space','Start / pause the series (Measurement series mode)'],['E','Electron flow on / off'],['T','Conventional current on / off'],['M','Mode Instant / Series'],['F','Full screen'],['Q','QR code full screen'],['H','This help']],
+    hilfe:[['S','Open / close the switch'],['+ / − or ↑ / ↓','Change the voltage U₀ by one step'],['Space','Start / pause the series (Measurement series mode)'],['E','Electron flow on / off'],['T','Conventional current on / off'],['M','Mode Instant / Series'],['K','Source adjustable / constant'],['F','Full screen'],['Q','QR code full screen'],['H','This help']],
     sbTitel:'Circuit: source, switch, ammeter, resistor, voltmeter', quelleAria:'Voltage source', widerstandAria:'Resistor', schalterAria:'Switch S',
     herlBtn:'Derive Ohm’s law', herlZu:'Hide derivation', herlWeiter:'Next step', herlAlle:'All steps',
     herlHinweis:'To derive the law, record at least three readings first (e.g. with “Start”).',
@@ -660,8 +691,9 @@ const $ = id => document.getElementById(id);
 /* ---------- Zustand ---------- */
 const S = {
   lang:'de', u:0, umax:12, schritt:1, rWert:100, rPraefix:'', zu:false, modus:'sofort',
+  quelle:'regelbar',    // 'regelbar' (U wird variiert, R fest) oder 'konstant' (U fest, R wird variiert)
   zeigeE:true, zeigeK:true,
-  reihen:[],            // [{r, punkte:Map<key,{u,i}>}] – letzte = aktuelle Reihe
+  reihen:[],            // [{fest, punkte:Map<key,{u,i,r,key}>}] – fest = R (regelbar) bzw. U (konstant); letzte = aktuelle Reihe
   laeuft:false, timer:null, letzterKey:null,
   herlOffen:false, herlStufe:0
 };
@@ -669,6 +701,9 @@ const R = () => S.rWert * PRAEFIX[S.rPraefix];
 const I = () => (S.zu && R() > 0) ? S.u / R() : 0;
 const UR = () => S.zu ? S.u : 0;
 const T = () => TEXTE[S.lang];
+const KONST = () => S.quelle === 'konstant';
+const fest = () => KONST() ? S.u : R();          // die in der Messreihe festgehaltene Größe
+const xVon = p => KONST() ? p.r : p.u;          // die variierte Größe (x-Achse)
 
 /* ---------- Formatierung ---------- */
 function nf(x, maxFrac, minFrac){
@@ -691,7 +726,7 @@ function fmtEinheit(x, einheit, stellen = 3){ // z. B. 0.12 → "120 mA"
   return `${sig(x / f, stellen)}\u00a0${p}${einheit}`;
 }
 function dezimalenVon(schritt){ const s = String(schritt); const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
-function fmtU(u){ return `${nf(u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}\u00a0V`; }
+function fmtU(u){ if (KONST()) return `${nf(u, 3)}\u00a0V`; return `${nf(u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}\u00a0V`; }
 function fmtR(r){ // Widerstand mit Eingabe-Präfix, falls möglich
   if (Math.abs(r - R()) < 1e-12) return `${sig(S.rWert, 5)}\u00a0${S.rPraefix}Ω`;
   return fmtEinheit(r, 'Ω', 4);
@@ -750,7 +785,7 @@ function tempoPxProS(){
 }
 const V_MAX = 240;
 function rDekade(){ const r = R(); return Math.pow(10, Math.floor(Math.log10(r))); }
-function iRef(){ return S.umax / rDekade(); }
+function iRef(){ return (KONST() ? Math.max(S.u, 1e-9) : S.umax) / rDekade(); }
 
 function setzeTeilchen(){
   // Positionen entlang der Bahn; Elektronen entgegen dem Uhrzeigersinn (−s), technische Richtung +s.
@@ -819,11 +854,33 @@ function maleSchaltbild(){
 
 /* ---------- Steuerung ---------- */
 function runde(u){ const n = Math.round(u / S.schritt); return Math.min(S.umax, Math.max(0, +(n * S.schritt).toFixed(6))); }
-function setzeU(u, {ausReihe = false} = {}){
-  S.u = runde(u);
-  $('uSlider').value = S.u;
-  if (S.modus === 'reihe' && !ausReihe) messwertAufnehmen();
+function setzeU(u){
+  if (KONST()){
+    S.u = Math.min(1000, Math.max(0, isFinite(u) ? u : 0));
+    $('uFest').value = S.u;
+    if (S.modus === 'reihe'){ neueReiheWennNoetig(); messwertAufnehmen(); }
+  } else {
+    S.u = runde(u);
+    $('uSlider').value = S.u;
+    if (S.modus === 'reihe') messwertAufnehmen();
+  }
   alles();
+}
+function setzeQuelle(q){
+  if (q === S.quelle) return;
+  stopReihe();
+  S.quelle = q; S.reihen = []; S.letzterKey = null; S.herlOffen = false;   // anderes Experiment → neue Tabelle
+  if (KONST()){ if (S.u <= 0) S.u = Math.min(S.umax, 12); $('uFest').value = S.u; }
+  else { S.u = runde(Math.min(S.u, S.umax)); $('uSlider').value = S.u; }
+  aktuelleReihe();
+  if (S.modus === 'reihe' && S.zu) messwertAufnehmen();
+  alles();
+}
+function maleQuelle(){
+  const k = KONST();
+  document.querySelectorAll('[data-quelle]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.quelle === S.quelle)));
+  $('uRegelbar').hidden = k; $('uBereich').hidden = k; $('uKonstant').hidden = !k;
+  document.querySelector('.quelle-pfeil').style.display = k ? 'none' : '';   // Symbol ohne Verstellpfeil = feste Quelle
 }
 function slider(){ setzeU(parseFloat($('uSlider').value)); }
 function schrittU(dir){ setzeU(S.u + dir * S.schritt); }
@@ -846,7 +903,7 @@ function setzeR(){
   let v = parseFloat($('rWert').value);
   if (!isFinite(v) || v <= 0) { $('rWert').value = S.rWert; return; }
   v = Math.min(999.99, v); S.rWert = v; S.rPraefix = $('rPraefix').value;
-  if (S.modus === 'reihe') neueReiheWennNoetig();
+  if (S.modus === 'reihe'){ if (KONST()) messwertAufnehmen(); else neueReiheWennNoetig(); }
   alles();
 }
 function schalter(){ S.zu = !S.zu; if (S.modus === 'reihe' && S.zu) messwertAufnehmen(); alles(); }
@@ -865,7 +922,7 @@ function maleSteuerung(){
   $('schalterBtn').textContent = S.zu ? t.schalterAuf : t.schalterZu;
   $('schalterBtn').setAttribute('aria-pressed', String(S.zu));
   const st = $('schalterStatus'); st.innerHTML = `${t.status}: <b>${S.zu ? t.geschlossen : t.offen}</b>`; st.classList.toggle('zu', S.zu);
-  $('modusText').textContent = S.modus === 'reihe' ? t.modusReihe : t.modusSofort;
+  $('modusText').textContent = S.modus === 'reihe' ? (KONST() ? t.modusReiheK : t.modusReihe) : t.modusSofort;
   // Instrumente
   const i = I(), ur = UR();
   $('anzU').textContent = fmtEinheit(ur, 'V'); $('anzI').textContent = fmtEinheit(i, 'A');
@@ -887,21 +944,23 @@ function maleSteuerung(){
 
 /* ---------- Messreihe ---------- */
 function aktuelleReihe(){
-  if (!S.reihen.length || Math.abs(S.reihen[S.reihen.length - 1].r - R()) > 1e-12 && S.reihen[S.reihen.length - 1].punkte.size){
-    S.reihen.push({r:R(), punkte:new Map()});
+  const f = fest(), letzte = S.reihen[S.reihen.length - 1];
+  if (!letzte || (Math.abs(letzte.fest - f) > 1e-9 * Math.max(1, Math.abs(f)) && letzte.punkte.size)){
+    S.reihen.push({fest:f, punkte:new Map()});
     if (S.reihen.length > 3) S.reihen.shift();
-  } else S.reihen[S.reihen.length - 1].r = R();
+  } else letzte.fest = f;
   return S.reihen[S.reihen.length - 1];
 }
 function neueReiheWennNoetig(){ aktuelleReihe(); }
 function messwertAufnehmen(){
   if (!S.zu) return;
   const reihe = aktuelleReihe();
-  const key = S.u.toFixed(4);
-  reihe.punkte.set(key, {u:S.u, i:I()});
+  const key = KONST() ? R().toPrecision(8) : S.u.toFixed(4);
+  reihe.punkte.set(key, {u:S.u, i:I(), r:R(), key});
   S.letzterKey = key;
 }
 function startReihe(){
+  if (KONST()) return;
   if (!S.zu){ zeigeHinweisReihe(T().schalterOffenWarn); return; }
   if (S.laeuft){ stopReihe(); return; }
   $('hinweisReihe').hidden = true;
@@ -931,11 +990,12 @@ function zeigeHinweisReihe(txt){ const h = $('hinweisReihe'); h.textContent = tx
 async function kopieren(){
   const reihe = S.reihen[S.reihen.length - 1]; if (!reihe || !reihe.punkte.size) return;
   const t = T();
-  const zeilen = [`U (V)\tI (A)\tR (Ω)`];
-  for (const p of sortiert(reihe)) zeilen.push(`${nf(p.u, 4)}\t${nf(p.i, 9)}\t${p.i > 0 ? nf(p.u / p.i, 6) : ''}`);
+  const zeilen = KONST() ? [`R (Ω)\tI (A)\tU (V)`] : [`U (V)\tI (A)\tR (Ω)`];
+  for (const p of sortiert(reihe)) zeilen.push(KONST() ? `${nf(p.r, 6)}\t${nf(p.i, 9)}\t${nf(p.u, 4)}` : `${nf(p.u, 4)}\t${nf(p.i, 9)}\t${p.i > 0 ? nf(p.u / p.i, 6) : ''}`);
   try { await navigator.clipboard.writeText(zeilen.join('\n')); $('kopierBtn').textContent = t.kopiert; setTimeout(() => { $('kopierBtn').textContent = t.kopieren; }, 1500); } catch (e) {}
 }
-const sortiert = reihe => [...reihe.punkte.values()].sort((a, b) => a.u - b.u);
+const sortiert = reihe => [...reihe.punkte.values()].sort((a, b) => xVon(a) - xVon(b));
+const festText = r => KONST() ? `U = ${fmtU(r.fest)}` : `R = ${fmtR(r.fest)}`;
 
 function maleTabelle(){
   const t = T();
@@ -943,32 +1003,44 @@ function maleTabelle(){
   const tb = $('tbody'); tb.innerHTML = '';
   const pts = reihe ? sortiert(reihe) : [];
   $('tabLeer').hidden = pts.length > 0;
-  $('tabLeer').textContent = t.messreiheLeer;
-  $('tabCaption').textContent = reihe ? `${t.caption} ${fmtR(reihe.r)}` : '';
-  const iMax = pts.reduce((m, p) => Math.max(m, p.i), 0);
-  const {f, p} = praefixFuer(iMax || 1);
-  const iMaxU = iMax / f; const dez = iMax > 0 ? Math.min(3, Math.max(0, 2 - Math.floor(Math.log10(iMaxU)))) : 0;
-  const rP = praefixFuer(reihe ? reihe.r : 1);
-  $('thI').innerHTML = `<i>I</i> in ${p}A`; $('thR').innerHTML = `<i>U</i> / <i>I</i> in ${rP.p}Ω`;
-  pts.forEach((pt, k) => {
-    const tr = document.createElement('tr');
-    const neu = S.letzterKey !== null && pt.u.toFixed(4) === S.letzterKey;
-    const rq = pt.i > 0 ? nf(pt.u / pt.i / rP.f, 3) : '—';
-    tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.i / f, dez, dez)}</td><td>${rq}</td>`;
-    tb.appendChild(tr);
-  });
+  $('tabLeer').textContent = KONST() ? t.messreiheLeerK : t.messreiheLeer;
+  $('tabCaption').textContent = reihe ? (KONST() ? `${t.captionK} ${fmtU(reihe.fest)}` : `${t.caption} ${fmtR(reihe.fest)}`) : '';
+  if (KONST()){
+    // U fest, R variiert: R und I je Zeile mit eigenem Präfix (R kann Dekaden überspannen), R · I = U
+    $('thU').innerHTML = `<i>R</i>`; $('thI').innerHTML = `<i>I</i>`; $('thR').innerHTML = `<i>R</i> · <i>I</i> in V`;
+    pts.forEach((pt, k) => {
+      const tr = document.createElement('tr'); const neu = pt.key === S.letzterKey;
+      tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${fmtEinheit(pt.r, 'Ω', 4)}</td><td${neu ? ' class="neu"' : ''}>${fmtEinheit(pt.i, 'A')}</td><td>${nf(pt.r * pt.i, 2)}</td>`;
+      tb.appendChild(tr);
+    });
+  } else {
+    $('thU').innerHTML = `<i>U</i> in V`;
+    const iMax = pts.reduce((m, p) => Math.max(m, p.i), 0);
+    const {f, p} = praefixFuer(iMax || 1);
+    const iMaxU = iMax / f; const dez = iMax > 0 ? Math.min(3, Math.max(0, 2 - Math.floor(Math.log10(iMaxU)))) : 0;
+    const rP = praefixFuer(reihe ? reihe.fest : 1);
+    $('thI').innerHTML = `<i>I</i> in ${p}A`; $('thR').innerHTML = `<i>U</i> / <i>I</i> in ${rP.p}Ω`;
+    pts.forEach((pt, k) => {
+      const tr = document.createElement('tr');
+      const neu = pt.key === S.letzterKey;
+      const rq = pt.i > 0 ? nf(pt.u / pt.i / rP.f, 3) : '—';
+      tr.innerHTML = `<td>${k + 1}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.u, dezimalenVon(S.schritt), dezimalenVon(S.schritt))}</td><td${neu ? ' class="neu"' : ''}>${nf(pt.i / f, dez, dez)}</td><td>${rq}</td>`;
+      tb.appendChild(tr);
+    });
+  }
   if (S.letzterKey !== null){ const z = tb.querySelector('td.neu'); if (z && z.scrollIntoView) z.scrollIntoView({block:'nearest'}); }
 }
 
 /* Herleitung des Ohmschen Gesetzes aus der aktuellen Messreihe (per Knopfdruck, schrittweise) */
 function herlDaten(){
+  if (KONST()) return null;
   const reihe = S.reihen[S.reihen.length - 1]; if (!reihe) return null;
   const nz = sortiert(reihe).filter(p => p.u > 0 && p.i > 0);
   if (nz.length < 2) return null;
   const p1 = nz[0], last = nz[nz.length - 1];
   const p2 = nz.find(p => p !== p1 && Math.abs(p.u - 2 * p1.u) < 1e-9) || last;
   const quot = nz.length <= 4 ? nz : [nz[0], nz[1], nz[Math.floor(nz.length / 2)], last];
-  return {reihe, nz, p1, p2, k:p2.u / p1.u, k2:p2.i / p1.i, last, m:last.i / last.u, r:reihe.r, quot};
+  return {reihe, nz, p1, p2, k:p2.u / p1.u, k2:p2.i / p1.i, last, m:last.i / last.u, r:reihe.fest, quot};
 }
 function herlToggle(){
   if (S.herlOffen){ S.herlOffen = false; }
@@ -982,7 +1054,9 @@ function herlWeiter(alle){
   const letzte = $('herlPanel').lastElementChild; if (letzte && letzte.scrollIntoView) letzte.scrollIntoView({block:'nearest', behavior:REDUZIERT ? 'auto' : 'smooth'});
 }
 function maleHerleitung(){
-  const t = T(), d = herlDaten();
+  const t = T();
+  document.querySelector('.herl').hidden = KONST();   // die Herleitung gehört zum Experiment „U variieren“
+  const d = KONST() ? null : herlDaten();
   if (!d) S.herlOffen = false;
   const btn = $('herlBtn');
   btn.disabled = !d;
@@ -1020,13 +1094,20 @@ function maleDiagramm(){
   const alleReihen = S.reihen.filter(r => r.punkte.size);
   // Während der Herleitung nur die aktuelle Reihe (das Steigungsdreieck braucht ihre Skala)
   const reihen = (S.herlOffen && alleReihen.length > 1) ? alleReihen.slice(-1) : alleReihen;
-  const umax = S.umax;
+  const k = KONST();
   let iMax = 0; for (const r of reihen) for (const p of r.punkte.values()) iMax = Math.max(iMax, p.i);
-  if (iMax === 0) iMax = umax / R();
+  if (iMax === 0) iMax = (k ? Math.max(S.u, 1e-9) : S.umax) / R();
   const {f, p} = praefixFuer(iMax);
   const yTick = tickSchritt(iMax / f, 5); const yMax = Math.max(yTick, Math.ceil(iMax / f / yTick) * yTick);
-  const xTick = tickSchritt(umax, 6); const xMax = umax;
-  const X = u => ml + (u / xMax) * (W - ml - mr);
+  // x-Achse: U in V (regelbar) bzw. R mit Präfix (konstant)
+  let xF = 1, xP = '', xTick, xMax;
+  if (k){
+    let rMax = 0; for (const r of reihen) for (const q of r.punkte.values()) rMax = Math.max(rMax, q.r);
+    if (rMax === 0) rMax = R();
+    const pf = praefixFuer(rMax); xF = pf.f; xP = pf.p;
+    xTick = tickSchritt(rMax / xF, 6); xMax = Math.max(xTick, Math.ceil(rMax / xF / xTick) * xTick);
+  } else { xTick = tickSchritt(S.umax, 6); xMax = S.umax; }
+  const X = x => ml + (x / xF / xMax) * (W - ml - mr);
   const Y = i => H - mb - (i / f / yMax) * (H - mt - mb);
   const el = (n, a, txt) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); if (txt !== undefined) e.textContent = txt; svg.appendChild(e); return e; };
   // Gitter + Ticks
@@ -1036,40 +1117,43 @@ function maleDiagramm(){
     el('text', {class:'tick', x:ml - 8, y:y + 4, 'text-anchor':'end'}, nf(v, 3));
   }
   for (let v = 0; v <= xMax + 1e-9; v += xTick){
-    const x = X(v);
+    const x = X(v * xF);
     el('line', {class:'netz', x1:x, x2:x, y1:mt, y2:H - mb});
     el('text', {class:'tick', x:x, y:H - mb + 16, 'text-anchor':'middle'}, nf(v, 3));
   }
   el('line', {class:'ach', x1:ml, x2:W - mr, y1:H - mb, y2:H - mb});
   el('line', {class:'ach', x1:ml, x2:ml, y1:mt, y2:H - mb});
-  const xn = el('text', {class:'achsname', x:W - mr, y:H - 6, 'text-anchor':'end'}); xn.innerHTML = `<tspan font-style="italic" font-family="Georgia,serif">U</tspan> in V`;
+  const xn = el('text', {class:'achsname', x:W - mr, y:H - 6, 'text-anchor':'end'}); xn.innerHTML = k ? `<tspan font-style="italic" font-family="Georgia,serif">R</tspan> in ${xP}Ω` : `<tspan font-style="italic" font-family="Georgia,serif">U</tspan> in V`;
   const yn = el('text', {class:'achsname', x:ml - 8, y:12, 'text-anchor':'end'}); yn.innerHTML = `<tspan font-style="italic" font-family="Georgia,serif">I</tspan> in ${p}A`;
-  $('diagTitel').textContent = t.diagramm;
+  $('diagTitel').textContent = k ? t.diagrammK : t.diagramm;
+  $('diagNotiz').textContent = k ? t.steigungK : t.steigung;
   // Reihen
   const tip = $('tooltip'); const belegt = [];
-  reihen.forEach((r, k) => {
-    const farbe = FARBEN[S.reihen.indexOf(r)] || FARBEN[k];
+  reihen.forEach((r, idx) => {
+    const farbe = FARBEN[S.reihen.indexOf(r)] || FARBEN[idx];
     const pts = sortiert(r);
-    if (pts.length > 1) el('polyline', {class:'linie', stroke:farbe, points:pts.map(q => `${X(q.u).toFixed(1)},${Y(q.i).toFixed(1)}`).join(' ')});
+    if (pts.length > 1) el('polyline', {class:'linie', stroke:farbe, points:pts.map(q => `${X(xVon(q)).toFixed(1)},${Y(q.i).toFixed(1)}`).join(' ')});
     pts.forEach(q => {
-      el('circle', {class:'marke', cx:X(q.u), cy:Y(q.i), r:4.2, fill:farbe});
-      const h = el('circle', {class:'treffer', cx:X(q.u), cy:Y(q.i), r:12});
+      el('circle', {class:'marke', cx:X(xVon(q)), cy:Y(q.i), r:4.2, fill:farbe});
+      const h = el('circle', {class:'treffer', cx:X(xVon(q)), cy:Y(q.i), r:12});
       const zeig = () => {
-        tip.innerHTML = `<i>U</i> = ${fmtU(q.u)} · <i>I</i> = ${fmtEinheit(q.i, 'A')}<br><i>R</i> = ${fmtR(r.r)}`;
+        tip.innerHTML = k ? `<i>R</i> = ${fmtEinheit(q.r, 'Ω', 4)} · <i>I</i> = ${fmtEinheit(q.i, 'A')}<br><i>U</i> = ${fmtU(q.u)}`
+                          : `<i>U</i> = ${fmtU(q.u)} · <i>I</i> = ${fmtEinheit(q.i, 'A')}<br><i>R</i> = ${fmtR(r.fest)}`;
         const bb = svg.getBoundingClientRect();
-        tip.style.left = (X(q.u) / W * bb.width) + 'px'; tip.style.top = (Y(q.i) / H * bb.height) + 'px';
+        tip.style.left = (X(xVon(q)) / W * bb.width) + 'px'; tip.style.top = (Y(q.i) / H * bb.height) + 'px';
         tip.classList.add('an');
       };
       h.addEventListener('pointerenter', zeig); h.addEventListener('pointermove', zeig);
       h.addEventListener('pointerleave', () => tip.classList.remove('an'));
     });
     if (pts.length){
-      const last = pts[pts.length - 1];
-      // Direktbeschriftung am Linienende; bei Überlappung mit einer früheren nach unten ausweichen
-      let y = Math.max(Y(last.i) - 8, mt + 10);
+      // Direktbeschriftung: regelbar am Linienende oben rechts, konstant am ersten (höchsten) Punkt;
+      // bei Überlappung mit einer früheren nach unten ausweichen
+      const anker = k ? pts[0] : pts[pts.length - 1];
+      let y = Math.max(Y(anker.i) - 8, mt + 10);
       for (const b of belegt) if (Math.abs(y - b) < 15) y = b + 15;
       belegt.push(y);
-      el('text', {class:'direkt', x:Math.min(X(last.u) + 8, W - mr - 74), y}, `R = ${fmtR(r.r)}`);
+      el('text', {class:'direkt', x:Math.min(X(xVon(anker)) + 8, W - mr - 74), y}, festText(r));
     }
   });
   // Steigungsdreieck (Herleitung ab Schritt 4): Ursprung → letzter Messpunkt
@@ -1085,14 +1169,18 @@ function maleDiagramm(){
   if (S.herlOffen && alleReihen.length > 1){ const s = document.createElement('span'); s.textContent = t.herlNurAktuell; leg.appendChild(s); }
   if (reihen.length >= 2) reihen.forEach(r => {
     const farbe = FARBEN[S.reihen.indexOf(r)];
-    const s = document.createElement('span'); s.innerHTML = `<i style="background:${farbe}"></i>${t.reihe} ${S.reihen.indexOf(r) + 1}: R = ${fmtR(r.r)}`; leg.appendChild(s);
+    const s = document.createElement('span'); s.innerHTML = `<i style="background:${farbe}"></i>${t.reihe} ${S.reihen.indexOf(r) + 1}: ${festText(r)}`; leg.appendChild(s);
   });
 }
 
 /* ---------- alles neu zeichnen ---------- */
 function alles(){
+  maleQuelle();
   maleSchaltbild();
   maleSteuerung();
+  const k = KONST();
+  $('startBtn').hidden = k; $('schrittBtn').hidden = k; $('tempoLabel').hidden = k;
+  $('messHinweis').hidden = !k; $('messHinweis').textContent = T().messHinweisK;
   if (S.modus === 'reihe'){ maleTabelle(); maleHerleitung(); maleDiagramm(); }
   const t = T();
   $('startBtn').innerHTML = (S.laeuft ? '⏸ ' : '▶ ') + (S.laeuft ? t.pause : t.start);
@@ -1142,7 +1230,9 @@ function hilfeZu(){ $('hilfe').hidden = true; }
   $('uMax').addEventListener('change', setzeUmax);
   $('uSchritt').addEventListener('change', setzeSchritt);
   $('rWert').addEventListener('change', setzeR);
-  $('rWert').addEventListener('input', () => { const v = parseFloat($('rWert').value); if (isFinite(v) && v > 0 && v <= 999.99){ S.rWert = v; if (S.modus === 'reihe') neueReiheWennNoetig(); alles(); } });
+  $('rWert').addEventListener('input', () => { const v = parseFloat($('rWert').value); if (isFinite(v) && v > 0 && v <= 999.99){ S.rWert = v; if (S.modus === 'reihe' && !KONST()) neueReiheWennNoetig(); alles(); } });   // bei konstanter Quelle trägt erst „change“ (Eingabe fertig) ein
+  $('uFest').addEventListener('change', () => setzeU(parseFloat($('uFest').value)));
+  document.querySelectorAll('[data-quelle]').forEach(b => b.addEventListener('click', () => setzeQuelle(b.dataset.quelle)));
   $('rPraefix').addEventListener('change', setzeR);
   $('schalterBtn').addEventListener('click', schalter);
   const treffer = document.querySelector('.schaltertreffer');
@@ -1179,8 +1269,9 @@ function hilfeZu(){ $('hilfe').hidden = true; }
     if (!$('hilfe').hidden){ if (ev.key === 'Escape' || ev.key === 'h' || ev.key === 'H' || ev.key === '?'){ ev.preventDefault(); hilfeZu(); } return; }
     const k = ev.key;
     if (k === 's' || k === 'S'){ ev.preventDefault(); schalter(); }
-    else if (k === '+' || k === 'ArrowUp' || k === 'ArrowRight'){ ev.preventDefault(); schrittU(1); }
-    else if (k === '-' || k === 'ArrowDown' || k === 'ArrowLeft'){ ev.preventDefault(); schrittU(-1); }
+    else if (k === '+' || k === 'ArrowUp' || k === 'ArrowRight'){ ev.preventDefault(); if (!KONST()) schrittU(1); }
+    else if (k === '-' || k === 'ArrowDown' || k === 'ArrowLeft'){ ev.preventDefault(); if (!KONST()) schrittU(-1); }
+    else if (k === 'k' || k === 'K'){ setzeQuelle(KONST() ? 'regelbar' : 'konstant'); }
     else if (k === ' '){ if (S.modus === 'reihe'){ ev.preventDefault(); startReihe(); } }
     else if (k === 'e' || k === 'E'){ $('zeigeE').checked = !$('zeigeE').checked; S.zeigeE = $('zeigeE').checked; alles(); }
     else if (k === 't' || k === 'T'){ $('zeigeK').checked = !$('zeigeK').checked; S.zeigeK = $('zeigeK').checked; alles(); }
@@ -1191,6 +1282,7 @@ function hilfeZu(){ $('hilfe').hidden = true; }
   });
 
   setzeSprache(l);
+  if (q.get('quelle') === 'konstant') setzeQuelle('konstant');
   if (q.get('modus') === 'reihe') setzeModus('reihe');
 })();
 </script>
